@@ -1587,7 +1587,7 @@ static int kd_fixmatch (graph *G, int *radded, CCdatagroup *dat,
                 light[i] = temporder[k++];
             for (i = top + 1; i < nheavy; i++)
                 heavy[i] = temporder[k++];
-                CC_FREE (temporder, node *);
+            CC_FREE (temporder, node *);
         }
 
         lbnds = CC_SAFE_MALLOC (nheavy, double);

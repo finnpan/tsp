@@ -1,5 +1,5 @@
 NAME : eil101
-COMMENT : 629
+COMMENT : Best is 629
 COMMENT : 101-city problem (Christofides/Eilon)
 TYPE : TSP
 DIMENSION : 101

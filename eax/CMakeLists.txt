@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(eax)
+project(eax VERSION 0.0.1 LANGUAGES CXX)
 
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Werror -Wextra -O0 -g2 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -Werror -Wextra -O3")
+set(FLAGS_COMMON "-Wall -Werror -Wextra -Wno-maybe-uninitialized")
+set(CMAKE_CXX_FLAGS "${FLAGS_COMMON} -O3 -g0")
+set(CMAKE_CXX_FLAGS_DEBUG "${FLAGS_COMMON} -O0 -g2 -ggdb")
 
 set(library_name eax_framework)
 set(source_path ${CMAKE_CURRENT_SOURCE_DIR}/src)

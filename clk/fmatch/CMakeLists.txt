@@ -1,7 +1,4 @@
-set(
-    source_files
-    fmatch.c
-)
+set(source_files fmatch.c)
 
 set(library_name fmatch)
 set(target_name fm_main)

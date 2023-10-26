@@ -1,5 +1,4 @@
-set(
-    source_files
+set(source_files
     kdbuild.c kdnear.c kdspan.c kdtwoopt.c
 )
 

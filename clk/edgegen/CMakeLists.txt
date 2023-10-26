@@ -1,5 +1,4 @@
-set(
-    source_files
+set(source_files
     edgegen.c  xnear.c delaunay.c mlinkern.c
 )
 

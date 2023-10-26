@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(clk)
+project(clk VERSION 0.0.1 LANGUAGES C)
 
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -Wall -Werror -Wextra -O0 -g2 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -Wall -Werror -Wextra -O3")
+set(FLAGS_COMMON "-Wall -Werror -Wextra -Wno-unused-function -Wno-unused-but-set-variable -Wno-maybe-uninitialized")
+set(CMAKE_C_FLAGS "${FLAGS_COMMON} -O3 -g0")
+set(CMAKE_C_FLAGS_DEBUG "${FLAGS_COMMON} -O0 -g2 -ggdb")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 link_libraries(m)

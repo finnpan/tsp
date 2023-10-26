@@ -1,5 +1,4 @@
-set(
-    source_files
+set(source_files
     linkern.c linkern_fixed.c linkern_path.c flip_two.c
 )
 

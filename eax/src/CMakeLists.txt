@@ -1,5 +1,4 @@
-set(
-    source_files
+set(source_files
     eax.cpp
     indi.cpp
     kopt.cpp
