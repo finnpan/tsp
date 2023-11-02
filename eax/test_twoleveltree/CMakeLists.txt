@@ -1,5 +1,7 @@
 set(target_name test_twoleveltree)
 
+find_package(GTest REQUIRED)
+
 add_executable(${target_name} ${target_name}.cpp)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
