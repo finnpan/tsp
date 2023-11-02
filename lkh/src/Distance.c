@@ -6,12 +6,12 @@
  * The appropriate function is referenced by the function pointer Distance.
  */
 
-int Distance_1(Node * Na, Node * Nb)
+int Distance_1(__attribute__((unused)) Node * Na, __attribute__((unused)) Node * Nb)
 {
     return 1;
 }
 
-int Distance_LARGE(Node * Na, Node * Nb)
+int Distance_LARGE(__attribute__((unused)) Node * Na, __attribute__((unused)) Node * Nb)
 {
     return 10000000;
 }
