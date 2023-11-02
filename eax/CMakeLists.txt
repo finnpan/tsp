@@ -9,5 +9,5 @@ set(library_name eax_framework)
 set(source_path ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_subdirectory(src)
-add_subdirectory(test_eax)
-add_subdirectory(test_twoleveltree)
+add_subdirectory(test)
+
