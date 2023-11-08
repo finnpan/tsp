@@ -33,6 +33,11 @@ Commit:
 
 #include "indi.h"
 
+/* TODO:
+ * 1. Diversity preservation: Entropy
+ * 2. Eset Type: Block2
+ */
+
 class Cross {
 public:
     Cross (int N);
