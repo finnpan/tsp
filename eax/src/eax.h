@@ -31,7 +31,7 @@ Commit:
 
 #pragma once
 
-#include "indi.h"
+#include "tsp.h"
 
 /* TODO:
  * 1. Diversity preservation: Entropy
@@ -40,7 +40,7 @@ Commit:
 
 class Cross {
 public:
-    Cross (int N, const Evaluator* e, int numPop);
+    Cross (const Evaluator* e, int nPop);
     ~Cross ();
     void SetParents (const Indi& tPa1, const Indi& tPa2, int numOfKids);
     void DoIt (Indi& tKid, Indi& tPa2, int numOfKids, int flagP);
@@ -61,7 +61,6 @@ private:
     void CheckValid (Indi& indi); /* For debug */
 
 private:
-    int _n;
     int **_nearData;
     int *_koritsu, *_bunki, *_koriInv, *_bunInv;
     int _koritsuMany, _bunkiMany;
@@ -73,7 +72,6 @@ private:
     int *_permu;
     int _numABcycle;
     int _posiCurr;
-    int _maxNumABcycle;
 
     int *_c;
 
@@ -109,11 +107,13 @@ private:
 
     int _numABcycleInEset;
     int *_abCycleInEset;
-    int _numOfPop;
-    const Evaluator* eval;
+
+    const int _maxNumABcycle;
+    const Evaluator* const _eval;
+    const int _numOfPop;
+    std::mt19937* const _rand;
 };
 
-class Kopt;
 class EAX {
 public:
     EAX ();
@@ -128,14 +128,18 @@ public:
     void SelectForMating ();
     void GenerateKids (int s);
 
-    Evaluator* _eval;     /* Distance of the edges */
-    Cross* _cross;             /* Eede assembly crossover */
+    std::mt19937* const _rand;
+    Evaluator* const _eval;     /* Distance of the edges */
+    int* _indexForMating;       /* Mating list (r[] in the paper) */
+    Indi* _curPop;             /* Current population members */
     Kopt* _kopt;               /* Local search with the 2-opt neighborhood */
+    Cross* _cross;             /* Eede assembly crossover */
+
     const char *_fileNameTSP;  /* File name of an TSP instance */
+    bool _silent{false};
 
     int _numOfPop;       /* Number of population members (N_pop in the paper) */
     int _numOfKids;      /* Number of offspring solutions (N_ch in the paper) */
-    Indi* _curPop;             /* Current population members */
     Indi _best;                /* Best solution in the current population */
     int _curNumOfGen;          /* The current number of generations */
     long int _accumurateNumCh;
@@ -144,5 +148,4 @@ public:
     double _averageValue;
     EvalType _bestValue;
     int _bestIndex;
-    int* _indexForMating;       /* Mating list (r[] in the paper) */
 };

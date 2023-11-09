@@ -31,38 +31,72 @@ Commit:
 
 #pragma once
 
-using EvalType = long long;
+#include <cstdio>
+#include <cstring>
+#include <cassert>
+#include <algorithm>
+#include <random>
 
-namespace Utils {
-	void Permutation (int* a, int n);
-};
+#include "tree.h"
+
+using EvalType = int32_t;
 
 class Indi {
 public:
     Indi ();
     ~Indi ();
-    void Define (int N);
-    Indi& operator= (const Indi& src);
-    bool operator== (const Indi& indi2);
 
-    int _n;                    /* Number of cities */
-    int** _link;               /* _link[i][]: two vertices adjacent to i */
-    EvalType _cost; /* Tour length of */
+    Indi (const Indi&) = delete;
+    Indi& operator= (const Indi&);
+    Indi (Indi&&) = delete;
+    Indi& operator= (Indi&&) = delete;
+
+    void Define (int n);
+    bool operator== (const Indi& rhs) const;
+
+    int        _nCity;
+    int**      _link;
+    EvalType   _cost;
 };
 
 class Evaluator {
 public:
     Evaluator ();
     ~Evaluator ();
-    void SetInstance (const char filename[]);
-    void DoIt (Indi& indi) const;
-    bool CheckValid (int* array, EvalType value);
 
-    int _nearNumMax;       /* Maximum number of k (see below) */
-    int **_nearCity;       /* NearCity[i][k]: k-th nearest city from */
-    EvalType  **_edgeDis;  /* EdgeDis[i][j]: distance between i and j */
-    int _nCity;             /* Number of cities */
-    double *_x;             /* x[i]: x-coordinate of */
-    double *_y;             /* y[i]: x-coordinate of */
-    int* _checkedN;
+    void DoIt (Indi& indi) const;
+    void SetInstance (const char filename[]);
+
+    const int  _maxNumNear;    /* Maximum number of k (see below) */
+    int        _nCity;
+    EvalType** _cost;
+    int**      _near;          /* NearCity[i][k]: k-th nearest city from */
+    int*       _buf;
+
+private:
+    double*    _x;             /* x[i]: x-coordinate of */
+    double*    _y;             /* y[i]: x-coordinate of */
+};
+
+class Kopt {
+public:
+    Kopt (const Evaluator* e);
+    ~Kopt ();
+
+    void DoIt (Indi& indi);
+
+private:
+    void MakeRandSol (Indi& indi) const;
+    void SetInvNearList ();
+    void TransIndiToTree (const Indi& indi);
+    void TransTreeToIndi (Indi& indi) const;
+    void Local_search_2_opt_neighborhood ();
+
+private:
+    std::mt19937* const    _rand;
+    const Evaluator* const _eval;
+    TwoLevelTree* const    _tree;
+    const int              _maxLenOfINL;
+    int*                   _numOfINL;
+    int**                  _invNearList;
 };

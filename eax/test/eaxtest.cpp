@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "eax.h"
 
 int main (int argc, char* argv[])
@@ -9,15 +7,18 @@ int main (int argc, char* argv[])
         return 0;
     }
 
-    EAX* eax = new EAX();
-    eax->_numOfPop = 100;
-    eax->_numOfKids = 30;
-    eax->_fileNameTSP = argv[1];
-    eax->Define();
+    EAX eax;
+    eax._numOfPop = 100;
+    eax._numOfKids = 30;
+    eax._fileNameTSP = argv[1];
+    eax.Define();
+    eax._silent = true;
+    eax.DoIt();
 
-    eax->DoIt();
-
-    delete eax;
+    printf("[ ==== PASSED ==== ] eax tested: iter = %d, best = %lld, avg = %lf\n",
+           eax._curNumOfGen,
+           (long long)eax._bestValue,
+           eax._averageValue);
 
     return 0;
 }

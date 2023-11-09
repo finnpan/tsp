@@ -34,8 +34,8 @@ Commit:
 #include <cassert>
 
 #define private public
-#include "twoleveltree.h"
-#undef orivate
+#include "tree.h"
+#undef private
 
 // whether a and b are neighbors and a is before b on a forward tour
 static bool IsOrderedNeighbor (const TwoLevelTree& tree, int a, int b)

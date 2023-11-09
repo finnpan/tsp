@@ -27,7 +27,8 @@ Commit:
 
 #pragma once
 
-#include <assert.h>
+#include <cstdlib>
+#include <cassert>
 #include <utility>
 
 class TwoLevelTree {
@@ -316,6 +317,7 @@ template <typename iterator>
 void TwoLevelTree::SetTour (iterator begin, iterator last)
 {
     const int tourLen = last - begin + 1;
+    (void)tourLen;
     assert(tourLen == _cityNum);
     const int segNum = ParentNum();
     const int segLen = _cityNum / segNum;

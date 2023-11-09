@@ -1,8 +1,2 @@
-set(source_files
-    eax.cpp
-    indi.cpp
-    kopt.cpp
-    twoleveltree.cpp
-)
-
+aux_source_directory(. source_files)
 add_library(${library_name} STATIC ${source_files})

@@ -25,9 +25,9 @@ Commit:
   805f00d6c16e525e7aabb66c064eb950e891fb1b
  */
 
-#include <math.h>
+#include <cmath>
 
-#include "twoleveltree.h"
+#include "tree.h"
 
 TwoLevelTree::TwoLevelTree (int cityNum, int originCity) :
     _segNum(static_cast<int>(std::sqrt(cityNum)) + 1),
