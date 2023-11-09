@@ -36,25 +36,24 @@ Commit:
 class TwoLevelTree;
 class Kopt {
 public:
-    Kopt (int N);
+    Kopt (int N, const Evaluator* e);
     ~Kopt ();
 
     /* Apply a local search with the 2-opt neighborhood */
     void DoIt (Indi& Indi);
     /* Set a random tour */
     void MakeRandSol (Indi& indi);
-    void SetInvNearList ();
-
-    const Evaluator* eval;
 
 private:
     void TransIndiToTree (const Indi& indi);
     void TransTreeToIndi (Indi& indi);
     void Sub ();
 
-    void TransIndiToTree2 (const Indi& indi);
-    void TransTreeToIndi2 (Indi& indi);
-    void Sub2 ();
+    void SetInvNearList ();
+
+    void TransIndiToTree_tlt (const Indi& indi);
+    void TransTreeToIndi_tlt (Indi& indi);
+    void Sub_tlt ();
 
     int GetNext (int t);
     int GetPrev (int t);
@@ -93,5 +92,6 @@ private:
     int *_gene;
     int *_b;
 
+    const Evaluator* eval;
     TwoLevelTree* _tree;
 };

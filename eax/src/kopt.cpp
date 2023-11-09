@@ -36,9 +36,10 @@ Commit:
 #include "twoleveltree.h"
 #include "kopt.h"
 
-Kopt::Kopt (int N)
+Kopt::Kopt (int N, const Evaluator* e)
 {
     _n = N;
+    eval = e;
 
     _link = new int* [_n];
     for (int i = 0; i < _n; ++i) {
@@ -73,6 +74,8 @@ Kopt::Kopt (int N)
     _gene = new int [_n];
 
     _tree = new TwoLevelTree(_n);
+
+    SetInvNearList();
 }
 
 Kopt::~Kopt ()
@@ -135,33 +138,87 @@ void Kopt::SetInvNearList ()
     }
 }
 
-void Kopt::TransIndiToTree2 (const Indi& indi)
+void Kopt::TransIndiToTree_tlt (const Indi& indi)
 {
     int cur = 0;
-    // TODO: optimize by directly copying _link
-    for (int i = 0; i < _n; ++i) {
-        _checkN[i] = cur;
+    for (int t = 0; t < _n; ++t) {
+        _checkN[t] = cur;
         cur = indi._link[cur][1];
     }
-    //_tree->SetTour(_checkN, _n);
+    _tree->SetTour(_checkN, _checkN + _n - 1);
 }
 
-void Kopt::TransTreeToIndi2 (Indi& indi)
+void Kopt::TransTreeToIndi_tlt (Indi& indi)
 {
-    int pre, next, cur = 0;
     for (int t = 0; t < _n; ++t) {
-        pre = _tree->GetPrev(cur);
-        next = _tree->GetNext(cur);
-        indi._link[t][0] = pre;
-        indi._link[t][1] = next;
-        cur = next;
+        indi._link[t][0] = _tree->GetPrev(t);
+        indi._link[t][1] = _tree->GetNext(t);
     }
     eval->DoIt(indi);
 }
 
-void Kopt::Sub2 ()
+void Kopt::Sub_tlt ()
 {
+    EvalType d1, d2;
+    int t[5];
 
+    for (int t = 0; t < _n; ++t) { _activeV[t] = 1; }
+
+    LLL1: t[0] = rand()%_n;
+    t[1] = t[0];
+
+    while (1) {  // t1's loop
+        t[1] = _tree->GetNext(t[1]);
+        if (_activeV[t[1]] == 0) { goto EEE; }
+
+        t[2] = _tree->GetPrev(t[1]);
+        for (int num1 = 1; num1 < 50; ++num1) {
+            t[4] = eval->_nearCity[t[1]][num1];
+            t[3] = _tree->GetPrev(t[4]);
+            d1 = eval->_edgeDis[t[1]][t[2]] - eval->_edgeDis[t[1]][t[4]];
+
+            if (d1 > 0) {
+                d2 = d1 + eval->_edgeDis[t[3]][t[4]] - eval->_edgeDis[t[3]][t[2]];
+                if (d2 > 0) {
+                    _tree->Flip(t[1], t[2], t[4], t[3]);
+                    for (int a = 1; a <= 4; ++a) {
+                        for (int k = 0; k < _numOfINL[t[a]]; ++k) {
+                            _activeV[_invNearList[t[a]][k]] = 1;
+                        }
+                    }
+                    goto LLL1;
+                }
+            } else {
+                break;
+            }
+        }
+
+        t[2] = _tree->GetNext(t[1]);
+        for (int num1 = 1; num1 < 50; ++num1) {
+            t[4] = eval->_nearCity[t[1]][num1];
+            t[3] = _tree->GetNext(t[4]);
+            d1 = eval->_edgeDis[t[1]][t[2]] - eval->_edgeDis[t[1]][t[4]];
+
+            if (d1 > 0) {
+                d2 = d1 + eval->_edgeDis[t[3]][t[4]] - eval->_edgeDis[t[3]][t[2]];
+                if (d2 > 0) {
+                    _tree->Flip(t[1], t[2], t[4], t[3]);
+                    for (int a = 1; a <= 4; ++a) {
+                        for (int k = 0; k < _numOfINL[t[a]]; ++k) {
+                            _activeV[_invNearList[t[a]][k]] = 1;
+                        }
+                    }
+                    goto LLL1;
+                }
+            } else {
+                break;
+            }
+        }
+
+        _activeV[t[1]] = 0;
+    EEE:;
+        if (t[1] == t[0]) { break; }
+    }
 }
 
 void Kopt::TransIndiToTree (const Indi& indi)
@@ -259,11 +316,17 @@ void Kopt::TransTreeToIndi (Indi& indi)
 
 void Kopt::DoIt (Indi& Indi)
 {
+#if 0
     this->TransIndiToTree(Indi);
     //  this->CheckDetail();           // Check
     //  this->CheckValid();            // Check
     this->Sub();
     this->TransTreeToIndi(Indi);
+#else
+    this->TransIndiToTree_tlt(Indi);
+    this->Sub_tlt();
+    this->TransTreeToIndi_tlt(Indi);
+#endif
 }
 
 void Kopt::Sub ()
@@ -287,8 +350,7 @@ void Kopt::Sub ()
         ////
         _flagRev = 0;
         _t[2] = this->GetPrev(_t[1]);
-        for (int num1 = 1; num1 < 50; ++num1)
-        {
+        for (int num1 = 1; num1 < 50; ++num1) {
             _t[4] = eval->_nearCity[_t[1]][num1];
             _t[3] = this->GetPrev(_t[4]);
             dis1 = eval->_edgeDis[_t[1]][_t[2]] - eval->_edgeDis[_t[1]][_t[4]];

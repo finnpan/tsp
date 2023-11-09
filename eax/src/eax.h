@@ -40,14 +40,12 @@ Commit:
 
 class Cross {
 public:
-    Cross (int N);
+    Cross (int N, const Evaluator* e, int numPop);
     ~Cross ();
     void SetParents (const Indi& tPa1, const Indi& tPa2, int numOfKids);
     void DoIt (Indi& tKid, Indi& tPa2, int numOfKids, int flagP);
 
     int fNumOfGeneratedCh;
-    const Evaluator* eval;
-    int _numOfPop;
 
 private:
     /* Step 2 of EAX */
@@ -111,6 +109,8 @@ private:
 
     int _numABcycleInEset;
     int *_abCycleInEset;
+    int _numOfPop;
+    const Evaluator* eval;
 };
 
 class Kopt;

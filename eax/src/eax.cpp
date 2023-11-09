@@ -71,13 +71,9 @@ void EAX::Define ()
 
     _best.Define(N);
 
-    _cross = new Cross(N);
-    _cross->eval = _eval;
-    _cross->_numOfPop = _numOfPop;
+    _cross = new Cross(N, _eval, _numOfPop);
 
-    _kopt = new Kopt(N);
-    _kopt->eval = _eval;
-    _kopt->SetInvNearList();
+    _kopt = new Kopt(N, _eval);
 }
 
 void EAX::DoIt ()
@@ -171,11 +167,13 @@ void EAX::GenerateKids (int s)
     _accumurateNumCh += _cross->fNumOfGeneratedCh;
 }
 
-Cross::Cross (int N)
+Cross::Cross (int N, const Evaluator* e, int numPop)
 {
     /* Set an appropriate value (2000 is usually enough) */
     _maxNumABcycle = 2000;
     _n = N;
+    eval = e;
+    _numOfPop = numPop;
 
     _nearData = new int* [_n];
     for (int j = 0; j < _n; ++j) {
