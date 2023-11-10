@@ -20,7 +20,6 @@ Original License:
 
 Repo:
   https://github.com/ShuhuaGao/two-level-tree
-
 Commit:
   805f00d6c16e525e7aabb66c064eb950e891fb1b
  */
@@ -29,6 +28,7 @@ Commit:
 
 #include <cstdlib>
 #include <cassert>
+#include <cmath>
 #include <utility>
 
 class TwoLevelTree {

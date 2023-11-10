@@ -24,7 +24,6 @@ Original License:
 
 Repo:
   https://github.com/nagata-yuichi/GA-EAX
-
 Commit:
   015dfbe9f267230f78787bd244af393ffc018900
  */
@@ -54,7 +53,7 @@ public:
     void Define (int n);
     bool operator== (const Indi& rhs) const;
 
-    int        _nCity;
+    int        _numCity;
     int**      _link;
     EvalType   _cost;
 };
@@ -67,15 +66,17 @@ public:
     void DoIt (Indi& indi) const;
     void SetInstance (const char filename[]);
 
-    const int  _maxNumNear;    /* Maximum number of k (see below) */
-    int        _nCity;
-    EvalType** _cost;
-    int**      _near;          /* NearCity[i][k]: k-th nearest city from */
-    int*       _buf;
+    std::random_device* const _rDev;
+    std::mt19937* const       _rand;
+    const int                 _maxNumNear;
+    int                       _numCity;
+    EvalType**                _cost;
+    int**                     _near; /* NearCity[i][k]: k-th nearest city from */
+    int*                      _buf;
 
 private:
-    double*    _x;             /* x[i]: x-coordinate of */
-    double*    _y;             /* y[i]: x-coordinate of */
+    double* _x; /* x[i]: x-coordinate of */
+    double* _y; /* y[i]: x-coordinate of */
 };
 
 class Kopt {
@@ -93,10 +94,10 @@ private:
     void Local_search_2_opt_neighborhood ();
 
 private:
-    std::mt19937* const    _rand;
+    const int              _numCity;
     const Evaluator* const _eval;
     TwoLevelTree* const    _tree;
-    const int              _maxLenOfINL;
-    int*                   _numOfINL;
+    const int              _maxNumINL;
+    int*                   _numINL;
     int**                  _invNearList;
 };

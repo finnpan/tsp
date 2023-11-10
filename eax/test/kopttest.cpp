@@ -7,7 +7,7 @@
 int main (int argc, char* argv[])
 {
     if (argc < 2) {
-        printf("please input instance file!\n");
+        printf("Error: please input instance file!\n");
         return 0;
     }
 
@@ -19,9 +19,9 @@ int main (int argc, char* argv[])
     EvalType e = 0;
     clock_t t = 0;
     Indi indi;
-    indi.Define(eval._nCity);
+    indi.Define(eval._numCity);
 
-    constexpr int times = 100;
+    constexpr int times = 20;
     for (int i = 0; i < times; i++) {
         clock_t start = clock();
         kopt.DoIt(indi);
@@ -29,10 +29,10 @@ int main (int argc, char* argv[])
         e += indi._cost;
     }
 
-    printf("[ ==== PASSED ==== ] kopt tested: iter = %d, avg = %5.5lf, time = %5.5f\n",
-           times,
-           (double)e/times,
-           (double)(t)/CLOCKS_PER_SEC);
+    printf("\e[1;32m[ ==== PASSED ==== ] kopt tested: ");
+    printf("iter = %d, avg = %5.5lf, time = %5.5f\n",
+           times, (double)e/times, (double)(t)/CLOCKS_PER_SEC);
+    printf("\e[0m");
 
     return 0;
 }
