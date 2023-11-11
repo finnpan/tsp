@@ -4,174 +4,147 @@ License: see tsp.h
 
 #include "eax.h"
 
-EAX::EAX () :
+EAXGA::EAXGA () :
     _eval(new Evaluator()),
-    _indexForMating(nullptr),
-    _curPop(nullptr),
     _kopt(nullptr),
-    _cross(nullptr)
+    _cross(nullptr),
+    _pop(nullptr),
+    _matingSeq(nullptr)
 {
     _numPop = 100;
     _numKids = 30;
+    _silent = false;
 }
 
-EAX::~EAX ()
+EAXGA::~EAXGA ()
 {
-    delete [] _indexForMating;
-    delete [] _curPop;
     delete _kopt;
     delete _cross;
+    delete [] _pop;
+    delete [] _matingSeq;
     delete _eval;
 }
 
-void EAX::Define ()
+void EAXGA::Define (const char* tspFileName)
 {
-    _eval->SetInstance(_fileNameTSP);
+    _eval->SetInstance(tspFileName);
 
     const int n = _eval->_numCity;
     _best.Define(n);
 
-    _indexForMating = new int [_numPop + 1];
-
-    _curPop = new Indi [_numPop];
-    for (int i = 0; i < _numPop; ++i) {
-        _curPop[i].Define(n);
-    }
-
-    _kopt = new Kopt(_eval);
+    _kopt = new KOpt(_eval);
     _cross = new Cross(_eval, _numPop);
+    _pop = new Indi [_numPop];
+    for (int i = 0; i < _numPop; ++i) {
+        _pop[i].Define(n);
+    }
+    _matingSeq = new int [_numPop + 1];
+
 }
 
-void EAX::DoIt ()
+void EAXGA::DoIt ()
 {
-    InitPop();
-    Init();
+    _numGen = 0;
+    _stagnGen = 0;
+    _best.MakeRand(_eval);
+
+    for (int i = 0; i < _numPop; ++i) {
+        _kopt->DoIt(_pop[i]);
+    }
 
     while (1) {
-        SetAverageBest();
+        SelectBest();
         if (!_silent) {
-            printf("%d: %lld %lf\n",
-                   _curNumGen,
-                   (long long)_bestValue,
-                   _averageValue);
+            printf("%d: %lld %lf\n", _numGen, (long long)_best._cost, _avgCost);
         }
 
-        if (TerminationCondition()) break;
+        if (ShouldTerminate()) { break; }
 
         SelectForMating();
-
-        for (int s =0; s < _numPop; ++s) {
-            GenerateKids(s);
+        for (int s = 0; s < _numPop; ++s) {
+            _cross->DoIt(_pop[_matingSeq[s]], _pop[_matingSeq[s+1]], _numKids);
         }
-        ++_curNumGen;
+
+        ++_numGen;
     }
 }
 
-void EAX::Init ()
+void EAXGA::SelectBest ()
 {
-    _accumurateNumCh = 0;
-    _curNumGen = 0;
-    _stagBest = 0;
+    EvalType stockBest = _best._cost;
+
+    _avgCost = 0.0;
+    int bestIndex = 0;
+    EvalType bestCost = _pop[0]._cost;
+
+    for (int i = 0; i < _numPop; ++i) {
+        _avgCost += _pop[i]._cost;
+        if (_pop[i]._cost < bestCost) {
+            bestIndex = i;
+            bestCost = _pop[i]._cost;
+        }
+    }
+
+    _best = _pop[bestIndex];
+    _avgCost /= _numPop;
+
+    if (_best._cost < stockBest) {
+        _stagnGen = 0;
+    } else {
+        _stagnGen++;
+    }
 }
 
-bool EAX::TerminationCondition ()
+bool EAXGA::ShouldTerminate ()
 {
-    if (_averageValue - _bestValue < 0.001) {
+    if (_avgCost - _best._cost < 0.001) {
         return true;
     }
 
-    if (_stagBest > int(1500 / _numKids)) {
+    if (_stagnGen > (1500 / _numKids)) {
         return true;
     }
 
     return false;
 }
 
-void EAX::SetAverageBest ()
-{
-    EvalType stockBest = _best._cost;
-
-    _averageValue = 0.0;
-    _bestIndex = 0;
-    _bestValue = _curPop[0]._cost;
-
-    for (int i = 0; i < _numPop; ++i) {
-        _averageValue += _curPop[i]._cost;
-        if (_curPop[i]._cost < _bestValue) {
-            _bestIndex = i;
-            _bestValue = _curPop[i]._cost;
-        }
-    }
-
-    _best = _curPop[_bestIndex];
-    _averageValue /= (double)_numPop;
-
-    if (_best._cost < stockBest) {
-        _stagBest = 0;
-    } else {
-        _stagBest++;
-    }
-}
-
-void EAX::InitPop ()
-{
-    for (int i = 0; i < _numPop; ++i) {
-        _kopt->DoIt(_curPop[i]);
-    }
-}
-
-void EAX::SelectForMating ()
+void EAXGA::SelectForMating ()
 {
     for (int i = 0; i < _numPop; i++) {
-        _indexForMating[i] = i;
+        _matingSeq[i] = i;
     }
-    std::shuffle(_indexForMating, _indexForMating+_numPop, *_eval->_rand);
-    _indexForMating[_numPop] = _indexForMating[0];
-}
-
-void EAX::GenerateKids (int s)
-{
-    _cross->SetParents(_curPop[_indexForMating[s]],
-                       _curPop[_indexForMating[s+1]], _numKids);
-
-    _cross->DoIt(_curPop[_indexForMating[s]],
-                 _curPop[_indexForMating[s+1]], _numKids, 1);
-
-    _accumurateNumCh += _cross->fNumGeneratedCh;
+    std::shuffle(_matingSeq, _matingSeq+_numPop, *_eval->_rand);
+    _matingSeq[_numPop] = _matingSeq[0];
 }
 
 Cross::Cross (const Evaluator* e, int nPop) :
-    _numCity(e->_numCity),
-    _maxNumABcycle(2000),
     _eval(e),
-    _numPop(nPop)
+    _numCity(e->_numCity),
+    _numPop(nPop),
+    _maxNumABcycle(2000)
 {
-    /* Set an appropriate value (2000 is usually enough) */
-
     const int n = _numCity;
     _nearData = new int* [n];
     for (int j = 0; j < n; ++j) {
         _nearData[j] = new int [5];
     }
 
-    _abCycle = new int* [_maxNumABcycle];
+    _ABcycle = new int* [_maxNumABcycle];
     for (int j = 0; j < _maxNumABcycle; ++j) {
-        _abCycle[j] = new int [2*n + 4];
+        _ABcycle[j] = new int [2*n + 4];
     }
 
     _koritsu = new int [n];
     _bunki = new int [n];
     _koriInv = new int [n];
     _bunInv = new int [n];
-    _checkKoritsu = new int [n];
     _route = new int [2*n + 1];
-    _permu = new int [_maxNumABcycle];
+    _permuABCycle = new int [_maxNumABcycle];
 
-    _c = new int [2*n+4];
+    _cycle = new int [2*n+4];
 
-    // Speed Up Start
-    _order = new int [n];
-    _inv = new int [n];
+    _path = new int [n];
+    _posi = new int [n];
     _segment = new int* [n];
     for (int j = 0; j < n; ++j) {
         _segment[j] = new int [2];
@@ -190,7 +163,7 @@ Cross::Cross (const Evaluator* e, int nPop) :
         _centerUnit[j] = 0;
     }
     _listCenterUnit = new int [n+2];
-    _gainAB = new EvalType [n];
+    _gainABcycle = new EvalType [_maxNumABcycle];
     _modiEdge = new int* [n];
     for (int j = 0; j < n; ++j) {
         _modiEdge[j] = new int [4];
@@ -199,11 +172,9 @@ Cross::Cross (const Evaluator* e, int nPop) :
     for (int j = 0; j < n; ++j) {
         _bestModiEdge[j] = new int [4];
     }
-    _appliedCylce = new int [n];
-    _bestAppliedCylce = new int [n];
-    // Speed Up End
-
-    _abCycleInEset = new int [_maxNumABcycle];
+    _appliedCycle = new int [n];
+    _bestAppliedCycle = new int [n];
+    _ABCycleInEset = new int [n];
 }
 
 Cross::~Cross ()
@@ -213,9 +184,8 @@ Cross::~Cross ()
     delete [] _bunki;
     delete [] _koriInv;
     delete [] _bunInv;
-    delete [] _checkKoritsu;
     delete [] _route;
-    delete [] _permu;
+    delete [] _permuABCycle;
 
     for (int j = 0; j < n; ++j) {
         delete[] _nearData[j];
@@ -223,15 +193,14 @@ Cross::~Cross ()
     delete[] _nearData;
 
     for (int j = 0; j < _maxNumABcycle; ++j) {
-        delete[] _abCycle[j];
+        delete[] _ABcycle[j];
     }
-    delete[] _abCycle;
+    delete[] _ABcycle;
 
-    delete [] _c;
+    delete [] _cycle;
 
-    // Speed Up Start
-    delete [] _order;
-    delete [] _inv;
+    delete [] _path;
+    delete [] _posi;
 
     for (int j = 0; j < n; ++j) {
         delete[] _segment[j];
@@ -248,7 +217,7 @@ Cross::~Cross ()
     delete [] _numElementInUnit;
     delete [] _centerUnit;
     delete [] _listCenterUnit;
-    delete [] _gainAB;
+    delete [] _gainABcycle;
 
     for (int j = 0; j < n; ++j) {
         delete[] _modiEdge[j];
@@ -258,138 +227,99 @@ Cross::~Cross ()
         delete[] _bestModiEdge[j];
     }
     delete [] _bestModiEdge;
-    delete [] _appliedCylce;
-    delete [] _bestAppliedCylce;
-    // Speed Up End
+    delete [] _appliedCycle;
+    delete [] _bestAppliedCycle;
 
-    delete [] _abCycleInEset;
+    delete [] _ABCycleInEset;
 }
 
-void Cross::SetParents (const Indi& tPa1, const Indi& tPa2, int numKids)
+void Cross::DoIt (Indi& kid, Indi& pa2, int nKids)
 {
-    SetABcycle(tPa1, tPa2, numKids);
+    EvalType bestGain = 0, gain;
+    int idx;
 
-    int curr, next, st, pre;
-    st = 0;
-    curr=-1;
-    next = st;
-    for (int i = 0; i < _numCity; ++i) {
-        pre=curr;
-        curr=next;
-        if (tPa1._link[curr][0] != pre) {
-            next = tPa1._link[curr][0];
-        } else {
-            next=tPa1._link[curr][1];
-        }
+    SetABcycle(kid, pa2, nKids);
 
-        _order[i] = curr;
-        _inv[curr] = i;
-    }
-
-    assert(next == st);
-}
-
-void Cross::DoIt (Indi& tKid, Indi& tPa2, int numKids, int flagP)
-{
-    int Num;
-    int jnum;
-    EvalType gain;
-    EvalType BestGain;
-    double pointMax, point;
-
-    if (numKids <= _numABcycle) {
-        Num = numKids;
-    } else {
-        Num = _numABcycle;
+    if (nKids > _numABcycle) {
+        nKids = _numABcycle;
     }
 
     for (int i = 0; i < _numABcycle; i++) {
-        _permu[i] = i;
+        _permuABCycle[i] = i;
     }
-    std::shuffle(_permu, _permu+_numABcycle, *_eval->_rand);
+    std::shuffle(_permuABCycle, _permuABCycle+_numABcycle, *_eval->_rand);
 
-    fNumGeneratedCh = 0;
-    pointMax = 0.0;
-    BestGain = 0;
-    int flagImp = 0;
-
-    for (int j =0; j < Num; ++j) {
+    for (int j = 0; j < nKids; ++j) {
         _numABcycleInEset = 0;
-        jnum = _permu[j];
-        _abCycleInEset[_numABcycleInEset++] = jnum;
+        idx = _permuABCycle[j];
+        _ABCycleInEset[_numABcycleInEset++] = idx;
 
-        _numSPL = 0;
         gain = 0;
-        _numAppliedCycle = 0;
         _numModiEdge = 0;
+        _numSPL = 0;
 
         _numAppliedCycle = _numABcycleInEset;
         for (int k = 0; k < _numAppliedCycle; ++k) {
-            _appliedCylce[k] = _abCycleInEset[k];
-            jnum = _appliedCylce[k];
-            ChangeSol(tKid, jnum, flagP);
-            gain += _gainAB[jnum];
+            _appliedCycle[k] = _ABCycleInEset[k];
+            idx = _appliedCycle[k];
+            ChangeSol(kid, idx, 1);
+            gain += _gainABcycle[idx];
         }
 
         MakeUnit();
-        MakeCompleteSol(tKid);
-        gain += _gainModi;
+        gain += MakeCompleteSol(kid);
+        kid._cost = kid._cost - gain;
 
-        ++fNumGeneratedCh;
-
-        point = (double)gain;
-        tKid._cost = tKid._cost - gain;
-
-        // if (pointMax < point) {
-        if (pointMax < point &&
-            tKid._cost != tPa2._cost) {
-            pointMax = point;
-            BestGain = gain;
-            flagImp = 1;
+        if (bestGain < gain) {
+            bestGain = gain;
 
             _numBestAppliedCycle = _numAppliedCycle;
-            for (int s = 0; s < _numBestAppliedCycle; ++s) {
-                _bestAppliedCylce[s] = _appliedCylce[s];
-            }
+            memcpy(_bestAppliedCycle, _appliedCycle, sizeof(int)*_numAppliedCycle);
 
             _numBestModiEdge = _numModiEdge;
             for (int s = 0; s < _numBestModiEdge; ++s) {
-                _bestModiEdge[s][0] = _modiEdge[s][0];
-                _bestModiEdge[s][1] = _modiEdge[s][1];
-                _bestModiEdge[s][2] = _modiEdge[s][2];
-                _bestModiEdge[s][3] = _modiEdge[s][3];
+                memcpy(_bestModiEdge[s], _modiEdge[s], sizeof(int)*4);
             }
         }
 
-        BackToPa1(tKid);
-        tKid._cost = tKid._cost + gain;
+        BackToPa1(kid);
+        kid._cost = kid._cost + gain;
     }
 
-    if (flagImp == 1) {
-        GoToBest(tKid);
-        tKid._cost = tKid._cost - BestGain;
+    if (bestGain != 0) {
+        GoToBest(kid);
+        kid._cost = kid._cost - bestGain;
     }
 }
 
-void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
+void Cross::SetABcycle (const Indi& pa1, const Indi& pa2, int nKids)
 {
     const int n = _numCity;
+    int* checkKoritsu = _eval->_buf;
+    int curr = -1, next = 0, prev = -1;
     _bunkiMany=0; _koritsuMany=0;
+
     for (int j = 0; j < n ; ++j) {
-        _nearData[j][1]=tPa1._link[j][0];
-        _nearData[j][3]=tPa1._link[j][1];
-
+        _nearData[j][1]=pa1._link[j][0];
+        _nearData[j][3]=pa1._link[j][1];
         _nearData[j][0] = 2;
+        _nearData[j][2]=pa2._link[j][0];
+        _nearData[j][4]=pa2._link[j][1];
 
-        _koritsu[_koritsuMany]=j;
-        _koritsuMany++;
-
-        _nearData[j][2]=tPa2._link[j][0];
-        _nearData[j][4]=tPa2._link[j][1];
-    }
-    for (int j = 0; j < n; ++j) {
-        _checkKoritsu[j]=-1;
+        _koritsu[_koritsuMany++]=j;
         _koriInv[_koritsu[j]]=j;
+        checkKoritsu[j]=-1;
+
+        // init _path and _posi for pa1
+        prev = curr;
+        curr = next;
+        if (pa1._link[curr][0] != prev) {
+            next = pa1._link[curr][0];
+        } else {
+            next = pa1._link[curr][1];
+        }
+        _path[j] = curr;
+        _posi[curr] = j;
     }
 
     /**************************************************/
@@ -402,7 +332,7 @@ void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
             _posiCurr=0;
             r=(*_eval->_rand)()%_koritsuMany;
             st=_koritsu[r];
-            _checkKoritsu[st]=_posiCurr;
+            checkKoritsu[st]=_posiCurr;
             _route[_posiCurr]=st;
             ci=st;
             _prType=2;
@@ -435,15 +365,15 @@ void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
 
             if (_nearData[ci][0]==2) {
                 if (ci==st) {
-                    if (_checkKoritsu[st]==0) {
-                        if ((_posiCurr-_checkKoritsu[st])%2==0) {
+                    if (checkKoritsu[st]==0) {
+                        if ((_posiCurr-checkKoritsu[st])%2==0) {
                             if (_nearData[st][_posiCurr%2+1]==pr) {
                                 std::swap(_nearData[ci][_posiCurr%2+1],
                                           _nearData[ci][_posiCurr%2+3]);
                             }
                             _stAppear = 1;
                             FormABcycle();
-                            if (_numABcycle == numKids) { goto LLL; }
+                            if (_numABcycle == nKids) { goto LLL; }
                             if (_numABcycle == _maxNumABcycle) { goto LLL; }
 
                             _flagSt=0;
@@ -454,30 +384,30 @@ void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
                                       _nearData[ci][_posiCurr%2+3]);
                             _prType=2;
                         }
-                        _checkKoritsu[st]=_posiCurr;
+                        checkKoritsu[st]=_posiCurr;
                     } else {
                         _stAppear = 2;
                         FormABcycle();
-                        if (_numABcycle == numKids) { goto LLL; }
+                        if (_numABcycle == nKids) { goto LLL; }
                         if (_numABcycle == _maxNumABcycle) { goto LLL; }
 
                         _flagSt=1;
                         _flagCircle=1;
                     }
-                } else if (_checkKoritsu[ci]==-1) {
-                    _checkKoritsu[ci]=_posiCurr;
+                } else if (checkKoritsu[ci]==-1) {
+                    checkKoritsu[ci]=_posiCurr;
                     if (_nearData[ci][_posiCurr%2+1]==pr) {
                         std::swap(_nearData[ci][_posiCurr%2+1],
                                   _nearData[ci][_posiCurr%2+3]);
                     }
                     _prType=2;
-                } else if (_checkKoritsu[ci]>0) {
+                } else if (checkKoritsu[ci]>0) {
                     std::swap(_nearData[ci][_posiCurr%2+1],
                             _nearData[ci][_posiCurr%2+3]);
-                    if ((_posiCurr-_checkKoritsu[ci])%2==0) {
+                    if ((_posiCurr-checkKoritsu[ci])%2==0) {
                         _stAppear = 1;
                         FormABcycle();
-                        if (_numABcycle == numKids) { goto LLL; }
+                        if (_numABcycle == nKids) { goto LLL; }
                         if (_numABcycle == _maxNumABcycle) { goto LLL; }
 
                         _flagSt=0;
@@ -493,7 +423,7 @@ void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
                 if (ci==st) {
                     _stAppear = 1;
                     FormABcycle();
-                    if (_numABcycle == numKids) { goto LLL; }
+                    if (_numABcycle == nKids) { goto LLL; }
                     if (_numABcycle == _maxNumABcycle) { goto LLL; }
 
                     _flagSt=1;
@@ -521,7 +451,7 @@ void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
             if (ci==st) {
                 _stAppear = 1;
                 FormABcycle();
-                if (_numABcycle == numKids) { goto LLL; }
+                if (_numABcycle == nKids) { goto LLL; }
                 if (_numABcycle == _maxNumABcycle) { goto LLL; }
                 _flagCircle=1;
             }
@@ -531,8 +461,7 @@ void Cross::SetABcycle (const Indi& tPa1, const Indi& tPa2, int numKids)
     LLL: ;
 
     if (_numABcycle == _maxNumABcycle) {
-        printf("Error: _maxNumABcycle(%d) must be increased\n", _maxNumABcycle);
-        exit(1);
+        printf("Warning: _maxNumABcycle(%d) must be increased\n", _maxNumABcycle);
     }
 }
 
@@ -552,7 +481,7 @@ void Cross::FormABcycle ()
     }
     st=_route[_posiCurr];
     cem=0;
-    _c[cem]=st;
+    _cycle[cem]=st;
 
     st_count=0;
     while (1) {
@@ -575,78 +504,78 @@ void Cross::FormABcycle ()
         _nearData[ci][0]--;
         if (ci==st) { st_count++; }
         if (st_count==_stAppear) { break; }
-        _c[cem]=ci;
+        _cycle[cem]=ci;
     }
 
     if (cem==2) {
         return;
     }
 
-    _abCycle[_numABcycle][0]=cem;
+    _ABcycle[_numABcycle][0]=cem;
 
     if (edge_type==2) {
-        stock=_c[0];
-        for (int j=0;j<cem-1;j++) { _c[j]=_c[j+1]; }
-        _c[cem-1]=stock;
+        stock=_cycle[0];
+        for (int j=0;j<cem-1;j++) { _cycle[j]=_cycle[j+1]; }
+        _cycle[cem-1]=stock;
     }
 
     for (int j=0;j<cem;j++) {
-        _abCycle[_numABcycle][j+2]=_c[j];
+        _ABcycle[_numABcycle][j+2]=_cycle[j];
     }
-    _abCycle[_numABcycle][1]=_c[cem-1];
-    _abCycle[_numABcycle][cem+2]=_c[0];
-    _abCycle[_numABcycle][cem+3]=_c[1];
+    _ABcycle[_numABcycle][1]=_cycle[cem-1];
+    _ABcycle[_numABcycle][cem+2]=_cycle[0];
+    _ABcycle[_numABcycle][cem+3]=_cycle[1];
 
-    _c[cem] = _c[0];
-    _c[cem+1] = _c[1];
+    _cycle[cem] = _cycle[0];
+    _cycle[cem+1] = _cycle[1];
     diff = 0;
     for (j = 0; j < cem/2; ++j) {
-        diff += _eval->_cost[_c[2*j]][_c[1+2*j]] -
-                _eval->_cost[_c[1+2*j]][_c[2+2*j]];
+        diff += _eval->_cost[_cycle[2*j]][_cycle[1+2*j]] -
+                _eval->_cost[_cycle[1+2*j]][_cycle[2+2*j]];
     }
-    _gainAB[_numABcycle] = diff;
+    _gainABcycle[_numABcycle] = diff;
     ++_numABcycle;
 }
 
-void Cross::ChangeSol (Indi& tKid, int ABnum, int type)
+void Cross::ChangeSol (Indi& kid, int idx, int type)
 {
     const int n = _numCity;
     int j;
     int cem,r1,r2,b1,b2;
     int po_r1, po_r2, po_b1, po_b2;
 
-    cem=_abCycle[ABnum][0];
-    _c[0]=_abCycle[ABnum][0];
+    cem=_ABcycle[idx][0];
+    _cycle[0]=_ABcycle[idx][0];
 
     if (type==2) {
         for (j=0;j<cem+3;j++) {
-            _c[cem+3-j]=_abCycle[ABnum][j+1];
+            _cycle[cem+3-j]=_ABcycle[idx][j+1];
         }
     } else {
         for (j=1;j<=cem+3;j++) {
-            _c[j]=_abCycle[ABnum][j];
+            _cycle[j]=_ABcycle[idx][j];
         }
     }
 
     for (j=0;j<cem/2;j++) {
-        r1=_c[2+2*j];r2=_c[3+2*j];
-        b1=_c[1+2*j];b2=_c[4+2*j];
+        r1=_cycle[2+2*j];r2=_cycle[3+2*j];
+        b1=_cycle[1+2*j];b2=_cycle[4+2*j];
 
-        if (tKid._link[r1][0]==r2) {
-            tKid._link[r1][0]=b1;
+        if (kid._link[r1][0]==r2) {
+            kid._link[r1][0]=b1;
         } else {
-            tKid._link[r1][1]=b1;
+            kid._link[r1][1]=b1;
         }
-        if (tKid._link[r2][0]==r1) {
-            tKid._link[r2][0]=b2;
+        if (kid._link[r2][0]==r1) {
+            kid._link[r2][0]=b2;
         } else {
-            tKid._link[r2][1]=b2;
+            kid._link[r2][1]=b2;
         }
 
-        po_r1 = _inv[r1];
-        po_r2 = _inv[r2];
-        po_b1 = _inv[b1];
-        po_b2 = _inv[b2];
+        po_r1 = _posi[r1];
+        po_r2 = _posi[r2];
+        po_b1 = _posi[b1];
+        po_b2 = _posi[b2];
 
         /* FIXME
          * Using eil101.tsp, sometime heap-buffer-overflow will occur.
@@ -682,8 +611,10 @@ void Cross::ChangeSol (Indi& tKid, int ABnum, int type)
     }
 }
 
-void Cross::MakeCompleteSol (Indi& tKid)
+EvalType Cross::MakeCompleteSol (Indi& kid)
 {
+    EvalType gainModi = 0;
+
     const int n = _numCity;
     int j,j1,j2;
     int st,pre,curr,next,a,b,c,d,aa,bb,a1,b1;
@@ -693,8 +624,6 @@ void Cross::MakeCompleteSol (Indi& tKid)
     int select_un;
     EvalType diff,max_diff;
     int nearMax;
-
-    _gainModi = 0;
 
     while (_numUnit != 1) {
         min_unit_city = n + 12345;
@@ -709,7 +638,7 @@ void Cross::MakeCompleteSol (Indi& tKid)
         for (int s = 0; s < _numSeg; ++s) {
             if (_segUnit[s] == center_un) {
                 int posi = _segment[s][0];
-                st = _order[posi];
+                st = _path[posi];
             }
         }
         assert(st != -1);
@@ -724,10 +653,10 @@ void Cross::MakeCompleteSol (Indi& tKid)
             _listCenterUnit[_numElementInCU] = curr;
             ++_numElementInCU;
 
-            if (tKid._link[curr][0] != pre) {
-                next = tKid._link[curr][0];
+            if (kid._link[curr][0] != pre) {
+                next = kid._link[curr][0];
             } else {
-                next = tKid._link[curr][1];
+                next = kid._link[curr][1];
             }
 
             if (next == st) { break; }
@@ -754,7 +683,7 @@ void Cross::MakeCompleteSol (Indi& tKid)
                     for (j1 = 0; j1 < 2; ++j1) {
                         b = _listCenterUnit[s-1+2*j1];
                         for (j2 = 0; j2 < 2; ++j2) {
-                            d = tKid._link[c][j2];
+                            d = kid._link[c][j2];
                             diff = _eval->_cost[a][b] + _eval->_cost[c][d] -
                                    _eval->_cost[a][c] - _eval->_cost[b][d];
                             if (diff > max_diff) {
@@ -785,7 +714,7 @@ void Cross::MakeCompleteSol (Indi& tKid)
                 if (_centerUnit[j] == 0) {
                     aa = a; bb = b;
                     a1 = j;
-                    b1 = tKid._link[j][0];
+                    b1 = kid._link[j][0];
                     break;
                 }
             }
@@ -793,25 +722,25 @@ void Cross::MakeCompleteSol (Indi& tKid)
                        _eval->_cost[a][a1] - _eval->_cost[b][b1];
         }
 
-        if (tKid._link[aa][0] == bb) {
-            tKid._link[aa][0]=a1;
+        if (kid._link[aa][0] == bb) {
+            kid._link[aa][0]=a1;
         } else {
-            tKid._link[aa][1] = a1;
+            kid._link[aa][1] = a1;
         }
-        if (tKid._link[bb][0] == aa) {
-            tKid._link[bb][0] = b1;
+        if (kid._link[bb][0] == aa) {
+            kid._link[bb][0] = b1;
         } else {
-            tKid._link[bb][1] = b1;
+            kid._link[bb][1] = b1;
         }
-        if (tKid._link[a1][0] == b1) {
-            tKid._link[a1][0] = aa;
+        if (kid._link[a1][0] == b1) {
+            kid._link[a1][0] = aa;
         } else {
-            tKid._link[a1][1] = aa;
+            kid._link[a1][1] = aa;
         }
-        if (tKid._link[b1][0] == a1) {
-            tKid._link[b1][0] = bb;
+        if (kid._link[b1][0] == a1) {
+            kid._link[b1][0] = bb;
         } else {
-            tKid._link[b1][1] = bb;
+            kid._link[b1][1] = bb;
         }
 
         _modiEdge[_numModiEdge][0] = aa;
@@ -820,9 +749,9 @@ void Cross::MakeCompleteSol (Indi& tKid)
         _modiEdge[_numModiEdge][3] = b1;
         ++_numModiEdge;
 
-        _gainModi += max_diff;
+        gainModi += max_diff;
 
-        int posi_a1 = _inv[a1];
+        int posi_a1 = _posi[a1];
         select_un = -1;
         for (int s = 0; s < _numSeg; ++s) {
             if (_segment[s][0] <= posi_a1 && posi_a1 <=  _segment[s][1]) {
@@ -852,6 +781,8 @@ void Cross::MakeCompleteSol (Indi& tKid)
             _centerUnit[c] = 0;
         }
     }
+
+    return gainModi;
 }
 
 void Cross::MakeUnit ()
@@ -960,53 +891,53 @@ void Cross::MakeUnit ()
     _numSeg = tmpNumSeg + 1;
 }
 
-void Cross::BackToPa1 (Indi& tKid)
+void Cross::BackToPa1 (Indi& kid)
 {
     int aa, bb, a1, b1;
-    int jnum;
+    int idx;
 
-    for (int s = _numModiEdge -1; s >= 0; --s) {
+    for (int s = _numModiEdge - 1; s >= 0; --s) {
         aa = _modiEdge[s][0];
-        a1 = _modiEdge[s][1];   // ここを変更に注意
-        bb = _modiEdge[s][2];   // ここを変更に注意
+        a1 = _modiEdge[s][1];
+        bb = _modiEdge[s][2];
         b1 = _modiEdge[s][3];
 
-        if (tKid._link[aa][0] == bb) {
-            tKid._link[aa][0] = a1;
+        if (kid._link[aa][0] == bb) {
+            kid._link[aa][0] = a1;
         } else {
-            tKid._link[aa][1] = a1;
+            kid._link[aa][1] = a1;
         }
-        if (tKid._link[b1][0] == a1) {
-            tKid._link[b1][0] = bb;
+        if (kid._link[b1][0] == a1) {
+            kid._link[b1][0] = bb;
         } else {
-            tKid._link[b1][1] = bb;
+            kid._link[b1][1] = bb;
         }
-        if (tKid._link[bb][0] == aa) {
-            tKid._link[bb][0] = b1;
+        if (kid._link[bb][0] == aa) {
+            kid._link[bb][0] = b1;
         } else {
-            tKid._link[bb][1] = b1;
+            kid._link[bb][1] = b1;
         }
-        if (tKid._link[a1][0] == b1) {
-            tKid._link[a1][0] = aa;
+        if (kid._link[a1][0] == b1) {
+            kid._link[a1][0] = aa;
         } else {
-            tKid._link[a1][1] = aa;
+            kid._link[a1][1] = aa;
         }
     }
 
     for (int s = 0; s < _numAppliedCycle; ++s) {
-        jnum = _appliedCylce[s];
-        ChangeSol(tKid, jnum, 2);
+        idx = _appliedCycle[s];
+        ChangeSol(kid, idx, 2);
     }
 }
 
-void Cross::GoToBest (Indi& tKid)
+void Cross::GoToBest (Indi& kid)
 {
     int aa, bb, a1, b1;
-    int jnum;
+    int idx;
 
     for (int s = 0; s < _numBestAppliedCycle; ++s) {
-        jnum = _bestAppliedCylce[s];
-        ChangeSol(tKid, jnum, 1);
+        idx = _bestAppliedCycle[s];
+        ChangeSol(kid, idx, 1);
     }
 
     for (int s = 0; s < _numBestModiEdge; ++s) {
@@ -1015,58 +946,25 @@ void Cross::GoToBest (Indi& tKid)
         a1 = _bestModiEdge[s][2];
         b1 = _bestModiEdge[s][3];
 
-        if (tKid._link[aa][0] == bb) {
-            tKid._link[aa][0]=a1;
+        if (kid._link[aa][0] == bb) {
+            kid._link[aa][0]=a1;
         } else {
-            tKid._link[aa][1] = a1;
+            kid._link[aa][1] = a1;
         }
-        if (tKid._link[bb][0] == aa) {
-            tKid._link[bb][0] = b1;
+        if (kid._link[bb][0] == aa) {
+            kid._link[bb][0] = b1;
         } else {
-            tKid._link[bb][1] = b1;
+            kid._link[bb][1] = b1;
         }
-        if (tKid._link[a1][0] == b1) {
-            tKid._link[a1][0] = aa;
+        if (kid._link[a1][0] == b1) {
+            kid._link[a1][0] = aa;
         } else {
-            tKid._link[a1][1] = aa;
+            kid._link[a1][1] = aa;
         }
-        if (tKid._link[b1][0] == a1) {
-            tKid._link[b1][0] = bb;
+        if (kid._link[b1][0] == a1) {
+            kid._link[b1][0] = bb;
         } else {
-            tKid._link[b1][1] = bb;
+            kid._link[b1][1] = bb;
         }
-    }
-}
-
-void Cross::CheckValid (Indi& indi)
-{
-    const int n = _numCity;
-    int curr, pre, next, st;
-    int count;
-
-    st = 0;
-    curr = -1;
-    next = st;
-
-    count = 0;
-    while (1) {
-        pre = curr;
-        curr = next;
-        ++count;
-        if (indi._link[curr][0] != pre) {
-            next = indi._link[curr][0];
-        } else {
-            next = indi._link[curr][1];
-        }
-
-        if (next == st) { break; }
-
-        if (count > n) {
-            printf("Error: Invalid = %d\n", count);
-            break;
-        }
-    }
-    if (count != n) {
-        printf("Error: Invalid = %d\n", count);
     }
 }

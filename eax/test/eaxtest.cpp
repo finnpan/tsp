@@ -7,15 +7,14 @@ int main (int argc, char* argv[])
         return 0;
     }
 
-    EAX eax;
-    eax._silent = true;
-    eax._fileNameTSP = argv[1];
-    eax.Define();
-    eax.DoIt();
+    EAXGA ga;
+    ga._silent = true;
+    ga.Define(argv[1]);
+    ga.DoIt();
 
-    printf("\e[1;32m[ ==== PASSED ==== ] eax tested: ");
+    printf("\e[1;32m[ ==== PASSED ==== ] EAXGA tested: ");
     printf("iter = %d, best = %lld, avg = %lf\n",
-           eax._curNumGen, (long long)eax._bestValue, eax._averageValue);
+           ga._numGen, (long long)ga._best._cost, ga._avgCost);
     printf("\e[0m");
 
     return 0;

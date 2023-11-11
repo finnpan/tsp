@@ -7,15 +7,15 @@ License: see tsp.h
 Indi::Indi () :
     _numCity(0),
     _link(nullptr),
-    _cost(0)
+    _cost(std::numeric_limits<EvalType>::max())
 {}
 
 Indi::~Indi ()
 {
     for (int i = 0; i < _numCity; ++i) {
-        delete[] _link[i];
+        delete [] _link[i];
     }
-    delete[] _link;
+    delete [] _link;
 }
 
 void Indi::Define (int n)
@@ -41,28 +41,26 @@ Indi& Indi::operator= (const Indi& rhs)
     return *this;
 }
 
-bool Indi::operator== (const Indi& rhs) const
+void Indi::MakeRand (const Evaluator* e)
 {
-    int curr = 0, next = -1, prev = -1;
+    const int n = _numCity;
+    int* path = e->_buf;
 
-    if (_numCity != rhs._numCity) {
-        return false;
+    for (int i = 0; i < n; ++i) {
+        path[i] = i;
     }
+    std::shuffle(path, path+n, *e->_rand);
 
-    for (int i = 0; i < _numCity; ++i) {
-        if (_link[curr][0] == prev) {
-            next = _link[curr][1];
-        } else {
-            next = _link[curr][0];
-        }
-        if (rhs._link[curr][0] != next && rhs._link[curr][1] != next) {
-            return false;
-        }
-        prev = curr;
-        curr = next;
+    for (int i = 1 ; i < n-1; ++i) {
+        _link[path[i]][0] = path[i-1];
+        _link[path[i]][1] = path[i+1];
     }
+    _link[path[0]][0] = path[n-1];
+    _link[path[0]][1] = path[1];
+    _link[path[n-1]][0] = path[n-2];
+    _link[path[n-1]][1] = path[0];
 
-    return true;
+    e->DoIt(*this);
 }
 
 Evaluator::Evaluator () :
@@ -100,10 +98,8 @@ void Evaluator::DoIt (Indi& indi) const
 {
     indi._cost = 0;
     for (int i = 0; i < _numCity; ++i) {
-        indi._cost += _cost[i][indi._link[i][0]];
         indi._cost += _cost[i][indi._link[i][1]];
     }
-    indi._cost /= 2;
 }
 
 void Evaluator::SetInstance (const char filename[])
@@ -213,9 +209,9 @@ void Evaluator::SetInstance (const char filename[])
     }
 }
 
-Kopt::Kopt (const Evaluator* e) :
-    _numCity(e->_numCity),
+KOpt::KOpt (const Evaluator* e) :
     _eval(e),
+    _numCity(e->_numCity),
     _tree(new TwoLevelTree(e->_numCity)),
     _maxNumINL(500)
 {
@@ -229,7 +225,7 @@ Kopt::Kopt (const Evaluator* e) :
     SetInvNearList();
 }
 
-Kopt::~Kopt ()
+KOpt::~KOpt ()
 {
     delete _tree;
     delete [] _numINL;
@@ -239,37 +235,15 @@ Kopt::~Kopt ()
     delete [] _invNearList;
 }
 
-void Kopt::DoIt (Indi& indi)
+void KOpt::DoIt (Indi& indi)
 {
-    MakeRandSol(indi);
+    indi.MakeRand(_eval);
     TransIndiToTree(indi);
     Local_search_2_opt_neighborhood();
     TransTreeToIndi(indi);
 }
 
-void Kopt::MakeRandSol (Indi& indi) const
-{
-    const int n = _numCity;
-    int* route = _eval->_buf;
-
-    for (int i = 0; i < n; ++i) {
-        route[i] = i;
-    }
-    std::shuffle(route, route+n, *_eval->_rand);
-
-    for (int i = 1 ; i < n-1; ++i) {
-        indi._link[route[i]][0] = route[i-1];
-        indi._link[route[i]][1] = route[i+1];
-    }
-    indi._link[route[0]][0] = route[n-1];
-    indi._link[route[0]][1] = route[1];
-    indi._link[route[n-1]][0] = route[n-2];
-    indi._link[route[n-1]][1] = route[0];
-
-    _eval->DoIt(indi);
-}
-
-void Kopt::SetInvNearList ()
+void KOpt::SetInvNearList ()
 {
     const int maxNumNear = _eval->_maxNumNear;
     const int n = _numCity;
@@ -292,19 +266,18 @@ void Kopt::SetInvNearList ()
     }
 }
 
-void Kopt::TransIndiToTree (const Indi& indi)
+void KOpt::TransIndiToTree (const Indi& indi)
 {
-    const int n = _numCity;
-    int* route = _eval->_buf;
+    int* path = _eval->_buf;
     int c = 0;
-    for (int i = 0; i < n; ++i) {
-        route[i] = c;
+    for (int i = 0; i < _numCity; ++i) {
+        path[i] = c;
         c = indi._link[c][1];
     }
-    _tree->SetTour(route, route + n - 1);
+    _tree->SetTour(path, path + _numCity - 1);
 }
 
-void Kopt::TransTreeToIndi (Indi& indi) const
+void KOpt::TransTreeToIndi (Indi& indi) const
 {
     for (int i = 0; i < _numCity; ++i) {
         indi._link[i][0] = _tree->GetPrev(i);
@@ -313,7 +286,7 @@ void Kopt::TransTreeToIndi (Indi& indi) const
     _eval->DoIt(indi);
 }
 
-void Kopt::Local_search_2_opt_neighborhood ()
+void KOpt::Local_search_2_opt_neighborhood ()
 {
     const int n = _numCity;
     const int maxNumNear = _eval->_maxNumNear;

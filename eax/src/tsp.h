@@ -40,6 +40,7 @@ Commit:
 
 using EvalType = int32_t;
 
+class Evaluator;
 class Indi {
 public:
     Indi ();
@@ -51,7 +52,7 @@ public:
     Indi& operator= (Indi&&) = delete;
 
     void Define (int n);
-    bool operator== (const Indi& rhs) const;
+    void MakeRand (const Evaluator* e);
 
     int        _numCity;
     int**      _link;
@@ -71,31 +72,30 @@ public:
     const int                 _maxNumNear;
     int                       _numCity;
     EvalType**                _cost;
-    int**                     _near; /* NearCity[i][k]: k-th nearest city from */
+    int**                     _near;
     int*                      _buf;
 
 private:
-    double* _x; /* x[i]: x-coordinate of */
-    double* _y; /* y[i]: x-coordinate of */
+    double* _x;
+    double* _y;
 };
 
-class Kopt {
+class KOpt {
 public:
-    Kopt (const Evaluator* e);
-    ~Kopt ();
+    KOpt (const Evaluator* e);
+    ~KOpt ();
 
     void DoIt (Indi& indi);
 
 private:
-    void MakeRandSol (Indi& indi) const;
     void SetInvNearList ();
     void TransIndiToTree (const Indi& indi);
     void TransTreeToIndi (Indi& indi) const;
     void Local_search_2_opt_neighborhood ();
 
 private:
-    const int              _numCity;
     const Evaluator* const _eval;
+    const int              _numCity;
     TwoLevelTree* const    _tree;
     const int              _maxNumINL;
     int*                   _numINL;

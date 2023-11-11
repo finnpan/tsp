@@ -14,7 +14,7 @@ int main (int argc, char* argv[])
     Evaluator eval;
     eval.SetInstance(argv[1]);
 
-    Kopt kopt(&eval);
+    KOpt kopt(&eval);
 
     EvalType e = 0;
     clock_t t = 0;
@@ -29,7 +29,7 @@ int main (int argc, char* argv[])
         e += indi._cost;
     }
 
-    printf("\e[1;32m[ ==== PASSED ==== ] kopt tested: ");
+    printf("\e[1;32m[ ==== PASSED ==== ] KOpt tested: ");
     printf("iter = %d, avg = %5.5lf, time = %5.5f\n",
            times, (double)e/times, (double)(t)/CLOCKS_PER_SEC);
     printf("\e[0m");
