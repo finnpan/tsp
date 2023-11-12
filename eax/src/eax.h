@@ -20,12 +20,12 @@ public:
 
 private:
     void SetABcycle (const Indi& pa1, const Indi& pa2, int nKids);
-    void FormABcycle ();
-    void ChangeSol (Indi& kid, int idx, int type);
-    EvalType MakeCompleteSol (Indi& kid);
+    void FormABcycle (int stAppear, int& posiCurr);
+    void ChangeSol (Indi& kid, int idx, bool reverse, bool updateSeg = true);
     void MakeUnit ();
-    void BackToPa1 (Indi& kid);
-    void GoToBest (Indi& kid);
+    EvalType MakeCompleteSol (Indi& kid);
+    void BackToPa1 (Indi& kid, int appliedCycle);
+    void GoToBest (Indi& kid, int bestAppliedCycle);
 
 private:
     const Evaluator* const _eval;
@@ -39,20 +39,10 @@ private:
     int*      _permuABCycle;
     EvalType* _gainABcycle;
 
-    int       _numABcycleInEset;
-    int*      _ABCycleInEset;
-    int       _numAppliedCycle;
-    int*      _appliedCycle;
-    int       _numBestAppliedCycle;
-    int*      _bestAppliedCycle;
-
     int **_nearData;
     int *_koritsu, *_bunki, *_koriInv, *_bunInv;
     int _koritsuMany, _bunkiMany;
-    int _stAppear;
     int *_route;
-    int _flagSt, _flagCircle, _prType;
-    int _posiCurr;
     int *_cycle;
 //////////////////////////////////////////////////////////////
     int       _numModiEdge;

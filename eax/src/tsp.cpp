@@ -296,59 +296,37 @@ void KOpt::Local_search_2_opt_neighborhood ()
     int* active = _eval->_buf;
     for (int i = 0; i < n; ++i) { active[i] = 1; }
 
-    LLL1: t[0] = (*_eval->_rand)()%n;
+    BBB: t[0] = (*_eval->_rand)()%n;
     t[1] = t[0];
 
     while (1) {  // t1's loop
         t[1] = _tree->GetNext(t[1]);
         if (active[t[1]] == 0) { goto EEE; }
 
-        t[2] = _tree->GetPrev(t[1]);
-        for (int k = 1; k < maxNumNear; ++k) {
-            t[4] = _eval->_near[t[1]][k];
-            t[3] = _tree->GetPrev(t[4]);
-            d1 = _eval->_cost[t[1]][t[2]] - _eval->_cost[t[1]][t[4]];
-
-            if (d1 > 0) {
-                d2 = d1 + _eval->_cost[t[3]][t[4]] - _eval->_cost[t[3]][t[2]];
-                if (d2 > 0) {
-                    _tree->Flip(t[1], t[2], t[4], t[3]);
-                    for (int i = 1; i <= 4; ++i) {
-                        for (int j = 0; j < _numINL[t[i]]; ++j) {
-                            active[_invNearList[t[i]][j]] = 1;
+        for (int rev = 0; rev < 2; rev++) {
+            t[2] = (rev == 0)? _tree->GetPrev(t[1]) : _tree->GetNext(t[1]);
+            for (int k = 1; k < maxNumNear; ++k) {
+                t[3] = _eval->_near[t[1]][k];
+                t[4] = (rev == 0)? _tree->GetPrev(t[3]) : _tree->GetNext(t[3]);
+                d1 = _eval->_cost[t[1]][t[2]] - _eval->_cost[t[1]][t[3]];
+                if (d1 > 0) {
+                    d2 = d1 + _eval->_cost[t[3]][t[4]] - _eval->_cost[t[2]][t[4]];
+                    if (d2 > 0) {
+                        _tree->Flip(t[1], t[2], t[3], t[4]);
+                        for (int i = 1; i <= 4; ++i) {
+                            for (int j = 0; j < _numINL[t[i]]; ++j) {
+                                active[_invNearList[t[i]][j]] = 1;
+                            }
                         }
+                        goto BBB;
                     }
-                    goto LLL1;
+                } else {
+                    break;
                 }
-            } else {
-                break;
             }
         }
-
-        t[2] = _tree->GetNext(t[1]);
-        for (int k = 1; k < maxNumNear; ++k) {
-            t[4] = _eval->_near[t[1]][k];
-            t[3] = _tree->GetNext(t[4]);
-            d1 = _eval->_cost[t[1]][t[2]] - _eval->_cost[t[1]][t[4]];
-
-            if (d1 > 0) {
-                d2 = d1 + _eval->_cost[t[3]][t[4]] - _eval->_cost[t[3]][t[2]];
-                if (d2 > 0) {
-                    _tree->Flip(t[1], t[2], t[4], t[3]);
-                    for (int i = 1; i <= 4; ++i) {
-                        for (int j = 0; j < _numINL[t[i]]; ++j) {
-                            active[_invNearList[t[i]][j]] = 1;
-                        }
-                    }
-                    goto LLL1;
-                }
-            } else {
-                break;
-            }
-        }
-
         active[t[1]] = 0;
-    EEE:;
-        if (t[1] == t[0]) { break; }
+
+        EEE: if (t[1] == t[0]) { break; };
     }
 }
