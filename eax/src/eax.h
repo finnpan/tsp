@@ -19,8 +19,8 @@ public:
     void DoIt(Indi& kid, Indi& pa2, int nKids);
 
 private:
-    void SetABcycle(const Indi& pa1, const Indi& pa2, int nKids);
-    void FormABcycle(int stAppear, int& posiCurr);
+    void BuildABcycle(const Indi& pa1, const Indi& pa2, int nKids);
+    void BuildABcycle_0(int stAppear, int& posiCurr);
     void ChangeSol(Indi& kid, int idx, bool reverse, bool updateSeg = true);
     void MakeUnit();
     EvalType MakeCompleteSol(Indi& kid);
@@ -33,25 +33,24 @@ private:
     const int _numPop;
     const int _maxNumABcycle;
 
-    //////////////////////////////////////////////////////////////
+    int *_pa1Route, *_pa1RouteInv;
+
     int _numABcycle;
-    int** _ABcycle;
+    int** _ABcycleList;
     int* _permuABCycle;
     EvalType* _gainABcycle;
 
-    int** _nearData;
-    int *_koritsu, *_bunki, *_koriInv, *_bunInv;
-    int _koritsuMany, _bunkiMany;
-    int* _route;
-    int* _cycle;
-    //////////////////////////////////////////////////////////////
+    int** _overlapEdges;
+    int *_cycBuf1, *_cycBuf1Inv;
+    int *_cycBuf2, *_cycBuf2Inv;
+    int _cycBuf1Num, _cycBuf2Num;
+    int* _cycRoute;
+    int* _ABCycle;
+
     int _numModiEdge;
     int** _modiEdge;
     int _numBestModiEdge;
     int** _bestModiEdge;
-
-    int* _path;
-    int* _posi;
 
     int** _segment;
     int* _segUnit;
@@ -64,22 +63,22 @@ private:
     int* _posiSeg;
     int* _numElementInUnit;
     int* _centerUnit;
-    int _numElementInCU;
     int* _listCenterUnit;
 };
 
 class EAXGA {
 public:
-    EAXGA();
+    EAXGA(int nPop = 100, int nKid = 30);
     ~EAXGA();
 
-    void Define(const char* tspFileName);
-    void DoIt();
+    bool Define(const char* tspFileName);
+    bool DoIt();
 
-    int _numPop;
-    int _numKids;
+    const int _numPop;
+    const int _numKids;
     bool _silent;
 
+    bool _failed;
     int _numGen;
     Indi _best;
     double _avgCost;
@@ -90,9 +89,9 @@ private:
     void SelectForMating();
 
     Evaluator* const _eval;
+    int* const _matingSeq;
     KOpt* _kopt;
     Cross* _cross;
     Indi* _pop;
-    int* _matingSeq;
     int _stagnGen;
 };

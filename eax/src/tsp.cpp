@@ -40,52 +40,70 @@ Indi& Indi::operator=(const Indi& rhs)
     return *this;
 }
 
-void Indi::MakeRand(const Evaluator* e)
+void Indi::ToArr(int* arr, int* arrInv) const
 {
-    const int n = _numCity;
-    int* path = e->_buf;
-
-    for (int i = 0; i < n; ++i) {
-        path[i] = i;
+    int curr = -1, next = 0, prev = -1;
+    for (int i = 0; i < _numCity; ++i) {
+        prev = curr;
+        curr = next;
+        if (_link[curr][0] != prev) {
+            next = _link[curr][0];
+        } else {
+            next = _link[curr][1];
+        }
+        arr[i] = curr;
+        if (arrInv) {
+            arrInv[curr] = i;
+        }
     }
-    std::shuffle(path, path + n, *e->_rand);
-
-    for (int i = 1; i < n - 1; ++i) {
-        _link[path[i]][0] = path[i - 1];
-        _link[path[i]][1] = path[i + 1];
-    }
-    _link[path[0]][0] = path[n - 1];
-    _link[path[0]][1] = path[1];
-    _link[path[n - 1]][0] = path[n - 2];
-    _link[path[n - 1]][1] = path[0];
-
-    e->DoIt(*this);
 }
 
 Evaluator::Evaluator()
     : _rDev(new std::random_device()), _rand(new std::mt19937((*_rDev)())),
       _maxNumNear(50), _numCity(0), _cost(nullptr), _near(nullptr),
-      _buf(nullptr), _x(nullptr), _y(nullptr)
+      _routeBuf(nullptr), _x(nullptr), _y(nullptr)
 {
 }
 
 Evaluator::~Evaluator()
 {
-    for (int i = 0; i < _numCity; ++i) {
+    Deallocate(_numCity);
+    delete _rand;
+    delete _rDev;
+}
+
+void Evaluator::Allocate(int n)
+{
+    _cost = new EvalType*[n];
+    for (int i = 0; i < n; ++i) {
+        _cost[i] = new EvalType[n];
+    }
+
+    _near = new int*[n];
+    for (int i = 0; i < n; ++i) {
+        _near[i] = new int[_maxNumNear + 1];
+    }
+
+    _routeBuf = new int[n];
+    _x = new double[n];
+    _y = new double[n];
+}
+
+void Evaluator::Deallocate(int n)
+{
+    for (int i = 0; i < n; ++i) {
         delete[] _cost[i];
     }
     delete[] _cost;
 
-    for (int i = 0; i < _numCity; ++i) {
+    for (int i = 0; i < n; ++i) {
         delete[] _near[i];
     }
     delete[] _near;
 
-    delete[] _buf;
+    delete[] _routeBuf;
     delete[] _x;
     delete[] _y;
-    delete _rand;
-    delete _rDev;
 }
 
 void Evaluator::DoIt(Indi& indi) const
@@ -96,16 +114,15 @@ void Evaluator::DoIt(Indi& indi) const
     }
 }
 
-void Evaluator::SetInstance(const char filename[])
+bool Evaluator::SetInstance(const char filename[])
 {
-    FILE* fp;
-    int n;
+    const int oldCityNum = _numCity;
     char word[80], type[80];
 
-    fp = fopen(filename, "r");
+    FILE* fp = fopen(filename, "r");
     if (!fp) {
         printf("Error: failed to open %s!\n", filename);
-        assert(0);
+        return false;
     }
 
     /* read instance */
@@ -127,13 +144,20 @@ void Evaluator::SetInstance(const char filename[])
     }
     if (strcmp(word, "NODE_COORD_SECTION") != 0) {
         printf("Error: in reading the instance\n");
-        exit(0);
+        return false;
     }
 
-    _buf = new int[_numCity];
-    _x = new double[_numCity];
-    _y = new double[_numCity];
+    if (_numCity <= 0) {
+        printf("Error: invalid city number in tsp file!\n");
+        return false;
+    }
 
+    if (_numCity != oldCityNum) {
+        Deallocate(oldCityNum);
+        Allocate(_numCity);
+    }
+
+    int n;
     for (int i = 0; i < _numCity; ++i) {
         fscanf(fp, "%d", &n);
         assert(i + 1 == n);
@@ -144,15 +168,6 @@ void Evaluator::SetInstance(const char filename[])
     }
 
     fclose(fp);
-
-    _cost = new EvalType*[_numCity];
-    for (int i = 0; i < _numCity; ++i) {
-        _cost[i] = new EvalType[_numCity];
-    }
-    _near = new int*[_numCity];
-    for (int i = 0; i < _numCity; ++i) {
-        _near[i] = new int[_maxNumNear + 1];
-    }
 
     double r = 0;
     if (strcmp(type, "EUC_2D") == 0) {
@@ -188,7 +203,7 @@ void Evaluator::SetInstance(const char filename[])
         }
     } else {
         printf("Error: EDGE_WEIGHT_TYPE is not supported\n");
-        exit(1);
+        return false;
     }
 
     int nearCity = 0;
@@ -196,22 +211,46 @@ void Evaluator::SetInstance(const char filename[])
 
     for (int ci = 0; ci < _numCity; ++ci) {
         for (int j = 0; j < _numCity; ++j) {
-            _buf[j] = 0;
+            _routeBuf[j] = 0;
         }
-        _buf[ci] = 1;
+        _routeBuf[ci] = 1;
         _near[ci][0] = ci;
         for (int ni = 1; ni <= _maxNumNear; ++ni) {
             minCost = std::numeric_limits<EvalType>::max();
             for (int j = 0; j < _numCity; ++j) {
-                if (_cost[ci][j] <= minCost && _buf[j] == 0) {
+                if (_cost[ci][j] <= minCost && _routeBuf[j] == 0) {
                     nearCity = j;
                     minCost = _cost[ci][j];
                 }
             }
             _near[ci][ni] = nearCity;
-            _buf[nearCity] = 1;
+            _routeBuf[nearCity] = 1;
         }
     }
+
+    return true;
+}
+
+void Evaluator::MakeRand(Indi& indi) const
+{
+    const int n = _numCity;
+    int* route = _routeBuf;
+
+    for (int i = 0; i < n; ++i) {
+        route[i] = i;
+    }
+    std::shuffle(route, route + n, *_rand);
+
+    for (int i = 1; i < n - 1; ++i) {
+        indi._link[route[i]][0] = route[i - 1];
+        indi._link[route[i]][1] = route[i + 1];
+    }
+    indi._link[route[0]][0] = route[n - 1];
+    indi._link[route[0]][1] = route[1];
+    indi._link[route[n - 1]][0] = route[n - 2];
+    indi._link[route[n - 1]][1] = route[0];
+
+    DoIt(indi);
 }
 
 KOpt::KOpt(const Evaluator* e)
@@ -240,7 +279,7 @@ KOpt::~KOpt()
 
 void KOpt::DoIt(Indi& indi)
 {
-    indi.MakeRand(_eval);
+    _eval->MakeRand(indi);
     TransIndiToTree(indi);
     Local_search_2_opt_neighborhood();
     TransTreeToIndi(indi);
@@ -272,13 +311,9 @@ void KOpt::SetInvNearList()
 
 void KOpt::TransIndiToTree(const Indi& indi)
 {
-    int* path = _eval->_buf;
-    int c = 0;
-    for (int i = 0; i < _numCity; ++i) {
-        path[i] = c;
-        c = indi._link[c][1];
-    }
-    _tree->SetTour(path, path + _numCity - 1);
+    int* route = _eval->_routeBuf;
+    indi.ToArr(route);
+    _tree->SetTour(route, route + _numCity - 1);
 }
 
 void KOpt::TransTreeToIndi(Indi& indi) const
@@ -297,7 +332,7 @@ void KOpt::Local_search_2_opt_neighborhood()
     EvalType d1, d2;
     int t[5];
 
-    int* active = _eval->_buf;
+    int* active = _eval->_routeBuf;
     for (int i = 0; i < n; ++i) {
         active[i] = 1;
     }

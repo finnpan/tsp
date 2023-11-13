@@ -40,7 +40,6 @@ Commit:
 
 using EvalType = int32_t;
 
-class Evaluator;
 class Indi {
 public:
     Indi();
@@ -52,7 +51,7 @@ public:
     Indi& operator=(Indi&&) = delete;
 
     void Define(int n);
-    void MakeRand(const Evaluator* e);
+    void ToArr(int* arr, int* arrInv = nullptr) const;
 
     int _numCity;
     int** _link;
@@ -65,7 +64,8 @@ public:
     ~Evaluator();
 
     void DoIt(Indi& indi) const;
-    void SetInstance(const char filename[]);
+    bool SetInstance(const char filename[]);
+    void MakeRand(Indi& indi) const;
 
     std::random_device* const _rDev;
     std::mt19937* const _rand;
@@ -73,7 +73,11 @@ public:
     int _numCity;
     EvalType** _cost;
     int** _near;
-    int* _buf;
+    int* _routeBuf;
+
+private:
+    void Allocate(int n);
+    void Deallocate(int n);
 
 private:
     double* _x;

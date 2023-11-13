@@ -4,45 +4,62 @@ License: see tsp.h
 
 #include "eax.h"
 
-EAXGA::EAXGA()
-    : _eval(new Evaluator()), _kopt(nullptr), _cross(nullptr), _pop(nullptr),
-      _matingSeq(nullptr)
-{
-    _numPop = 100;
-    _numKids = 30;
-    _silent = false;
-}
+EAXGA::EAXGA(int nPop, int nKid)
+    : _numPop(nPop), _numKids(nKid), _silent(false),
+      _failed(false),
+      _eval(new Evaluator()), _matingSeq(new int[nPop + 1]),
+      _kopt(nullptr), _cross(nullptr), _pop(nullptr)
+{}
 
 EAXGA::~EAXGA()
 {
     delete _kopt;
     delete _cross;
     delete[] _pop;
+
     delete[] _matingSeq;
     delete _eval;
 }
 
-void EAXGA::Define(const char* tspFileName)
+bool EAXGA::Define(const char* tspFileName)
 {
-    _eval->SetInstance(tspFileName);
+    const int oldCityNum = _eval->_numCity;
+    _failed = !_eval->SetInstance(tspFileName);
+
+    if (_failed) {
+        printf("Error: bad tsp file!\n");
+        return false;
+    }
 
     const int n = _eval->_numCity;
-    _best.Define(n);
+    if (n != oldCityNum) {
+        _best.~Indi();
+        _best.Define(n);
 
-    _kopt = new KOpt(_eval);
-    _cross = new Cross(_eval, _numPop);
-    _pop = new Indi[_numPop];
-    for (int i = 0; i < _numPop; ++i) {
-        _pop[i].Define(n);
+        delete _kopt;
+        delete _cross;
+        delete[] _pop;
+
+        _kopt = new KOpt(_eval);
+        _cross = new Cross(_eval, _numPop);
+        _pop = new Indi[_numPop];
+        for (int i = 0; i < _numPop; ++i) {
+            _pop[i].Define(n);
+        }
     }
-    _matingSeq = new int[_numPop + 1];
+
+    return true;
 }
 
-void EAXGA::DoIt()
+bool EAXGA::DoIt()
 {
+    if (_failed) {
+        return false;
+    }
+
     _numGen = 0;
     _stagnGen = 0;
-    _best.MakeRand(_eval);
+    _eval->MakeRand(_best);
 
     for (int i = 0; i < _numPop; ++i) {
         _kopt->DoIt(_pop[i]);
@@ -66,6 +83,8 @@ void EAXGA::DoIt()
 
         ++_numGen;
     }
+
+    return true;
 }
 
 void EAXGA::SelectBest()
@@ -120,27 +139,36 @@ Cross::Cross(const Evaluator* e, int nPop)
     : _eval(e), _numCity(e->_numCity), _numPop(nPop), _maxNumABcycle(2000)
 {
     const int n = _numCity;
-    _nearData = new int*[n];
-    for (int j = 0; j < n; ++j) {
-        _nearData[j] = new int[5];
-    }
-
-    _ABcycle = new int*[_maxNumABcycle];
+    _ABcycleList = new int*[_maxNumABcycle];
     for (int j = 0; j < _maxNumABcycle; ++j) {
-        _ABcycle[j] = new int[2 * n + 4];
+        _ABcycleList[j] = new int[2 * n + 4];
+    }
+    _permuABCycle = new int[_maxNumABcycle];
+    _gainABcycle = new EvalType[_maxNumABcycle];
+
+    _pa1Route = new int[n];
+    _pa1RouteInv = new int[n];
+
+    _overlapEdges = new int*[n];
+    for (int j = 0; j < n; ++j) {
+        _overlapEdges[j] = new int[5];
+    }
+    _cycBuf1 = new int[n];
+    _cycBuf2 = new int[n];
+    _cycBuf1Inv = new int[n];
+    _cycBuf2Inv = new int[n];
+    _cycRoute = new int[2 * n + 1];
+    _ABCycle = new int[2 * n + 4];
+
+    _modiEdge = new int*[n];
+    for (int j = 0; j < n; ++j) {
+        _modiEdge[j] = new int[4];
+    }
+    _bestModiEdge = new int*[n];
+    for (int j = 0; j < n; ++j) {
+        _bestModiEdge[j] = new int[4];
     }
 
-    _koritsu = new int[n];
-    _bunki = new int[n];
-    _koriInv = new int[n];
-    _bunInv = new int[n];
-    _route = new int[2 * n + 1];
-    _permuABCycle = new int[_maxNumABcycle];
-
-    _cycle = new int[2 * n + 4];
-
-    _path = new int[n];
-    _posi = new int[n];
     _segment = new int*[n];
     for (int j = 0; j < n; ++j) {
         _segment[j] = new int[2];
@@ -159,41 +187,40 @@ Cross::Cross(const Evaluator* e, int nPop)
         _centerUnit[j] = 0;
     }
     _listCenterUnit = new int[n + 2];
-    _gainABcycle = new EvalType[_maxNumABcycle];
-    _modiEdge = new int*[n];
-    for (int j = 0; j < n; ++j) {
-        _modiEdge[j] = new int[4];
-    }
-    _bestModiEdge = new int*[n];
-    for (int j = 0; j < n; ++j) {
-        _bestModiEdge[j] = new int[4];
-    }
 }
 
 Cross::~Cross()
 {
     const int n = _numCity;
-    delete[] _koritsu;
-    delete[] _bunki;
-    delete[] _koriInv;
-    delete[] _bunInv;
-    delete[] _route;
+    for (int j = 0; j < _maxNumABcycle; ++j) {
+        delete[] _ABcycleList[j];
+    }
+    delete[] _ABcycleList;
     delete[] _permuABCycle;
+    delete[] _gainABcycle;
 
     for (int j = 0; j < n; ++j) {
-        delete[] _nearData[j];
+        delete[] _overlapEdges[j];
     }
-    delete[] _nearData;
+    delete[] _overlapEdges;
+    delete[] _cycBuf1;
+    delete[] _cycBuf2;
+    delete[] _cycBuf1Inv;
+    delete[] _cycBuf2Inv;
+    delete[] _cycRoute;
+    delete[] _ABCycle;
 
-    for (int j = 0; j < _maxNumABcycle; ++j) {
-        delete[] _ABcycle[j];
+    delete[] _pa1Route;
+    delete[] _pa1RouteInv;
+
+    for (int j = 0; j < n; ++j) {
+        delete[] _modiEdge[j];
     }
-    delete[] _ABcycle;
-
-    delete[] _cycle;
-
-    delete[] _path;
-    delete[] _posi;
+    delete[] _modiEdge;
+    for (int j = 0; j < n; ++j) {
+        delete[] _bestModiEdge[j];
+    }
+    delete[] _bestModiEdge;
 
     for (int j = 0; j < n; ++j) {
         delete[] _segment[j];
@@ -210,16 +237,6 @@ Cross::~Cross()
     delete[] _numElementInUnit;
     delete[] _centerUnit;
     delete[] _listCenterUnit;
-    delete[] _gainABcycle;
-
-    for (int j = 0; j < n; ++j) {
-        delete[] _modiEdge[j];
-    }
-    delete[] _modiEdge;
-    for (int j = 0; j < n; ++j) {
-        delete[] _bestModiEdge[j];
-    }
-    delete[] _bestModiEdge;
 }
 
 void Cross::DoIt(Indi& kid, Indi& pa2, int nKids)
@@ -227,17 +244,20 @@ void Cross::DoIt(Indi& kid, Indi& pa2, int nKids)
     EvalType bestGain = 0, gain;
     int bestAppliedCycle, appliedCycle;
 
-    SetABcycle(kid, pa2, nKids);
+    /* init _pa1Route and _pa1RouteInv for pa1 */
+    kid.ToArr(_pa1Route, _pa1RouteInv);
+
+    BuildABcycle(kid, pa2, nKids);
 
     if (nKids > _numABcycle) {
         nKids = _numABcycle;
     }
-
     for (int i = 0; i < _numABcycle; i++) {
         _permuABCycle[i] = i;
     }
     std::shuffle(_permuABCycle, _permuABCycle + _numABcycle, *_eval->_rand);
 
+    /* main loop to generate nKids kids */
     for (int j = 0; j < nKids; ++j) {
         gain = 0;
         _numModiEdge = 0;
@@ -270,35 +290,23 @@ void Cross::DoIt(Indi& kid, Indi& pa2, int nKids)
     }
 }
 
-void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
+void Cross::BuildABcycle(const Indi& pa1, const Indi& pa2, int nKids)
 {
     const int n = _numCity;
-    int* checkKoritsu = _eval->_buf;
-    int curr = -1, next = 0, prev = -1;
-    _bunkiMany = 0;
-    _koritsuMany = 0;
+    int* checkCycBuf1 = _eval->_routeBuf;
+    _cycBuf2Num = 0;
+    _cycBuf1Num = 0;
 
     for (int j = 0; j < n; ++j) {
-        _nearData[j][1] = pa1._link[j][0];
-        _nearData[j][3] = pa1._link[j][1];
-        _nearData[j][0] = 2;
-        _nearData[j][2] = pa2._link[j][0];
-        _nearData[j][4] = pa2._link[j][1];
+        _overlapEdges[j][1] = pa1._link[j][0];
+        _overlapEdges[j][3] = pa1._link[j][1];
+        _overlapEdges[j][0] = 2;
+        _overlapEdges[j][2] = pa2._link[j][0];
+        _overlapEdges[j][4] = pa2._link[j][1];
 
-        _koritsu[_koritsuMany++] = j;
-        _koriInv[_koritsu[j]] = j;
-        checkKoritsu[j] = -1;
-
-        // init _path and _posi for pa1
-        prev = curr;
-        curr = next;
-        if (pa1._link[curr][0] != prev) {
-            next = pa1._link[curr][0];
-        } else {
-            next = pa1._link[curr][1];
-        }
-        _path[j] = curr;
-        _posi[curr] = j;
+        _cycBuf1[_cycBuf1Num++] = j;
+        _cycBuf1Inv[_cycBuf1[j]] = j;
+        checkCycBuf1[j] = -1;
     }
 
     /**************************************************/
@@ -309,17 +317,17 @@ void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
     int flagCircle = 0;
     int posiCurr = 0;
     int r = 0, pr = 0, st = 0, ci = 0;
-    while (_koritsuMany != 0) {
+    while (_cycBuf1Num != 0) {
         if (flagSt == 1) {
             posiCurr = 0;
-            r = (*_eval->_rand)() % _koritsuMany;
-            st = _koritsu[r];
-            checkKoritsu[st] = posiCurr;
-            _route[posiCurr] = st;
+            r = (*_eval->_rand)() % _cycBuf1Num;
+            st = _cycBuf1[r];
+            checkCycBuf1[st] = posiCurr;
+            _cycRoute[posiCurr] = st;
             ci = st;
             prType = 2;
         } else if (flagSt == 0) {
-            ci = _route[posiCurr];
+            ci = _cycRoute[posiCurr];
         }
 
         flagCircle = 0;
@@ -329,31 +337,31 @@ void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
 
             switch (prType) {
                 case 1:
-                    ci = _nearData[pr][posiCurr % 2 + 1];
+                    ci = _overlapEdges[pr][posiCurr % 2 + 1];
                     break;
                 case 2:
                     r = (*_eval->_rand)() % 2;
-                    ci = _nearData[pr][posiCurr % 2 + 1 + 2 * r];
+                    ci = _overlapEdges[pr][posiCurr % 2 + 1 + 2 * r];
                     if (r == 0) {
-                        std::swap(_nearData[pr][posiCurr % 2 + 1],
-                                  _nearData[pr][posiCurr % 2 + 3]);
+                        std::swap(_overlapEdges[pr][posiCurr % 2 + 1],
+                                  _overlapEdges[pr][posiCurr % 2 + 3]);
                     }
                     break;
                 case 3:
-                    ci = _nearData[pr][posiCurr % 2 + 3];
+                    ci = _overlapEdges[pr][posiCurr % 2 + 3];
             }
 
-            _route[posiCurr] = ci;
+            _cycRoute[posiCurr] = ci;
 
-            if (_nearData[ci][0] == 2) {
+            if (_overlapEdges[ci][0] == 2) {
                 if (ci == st) {
-                    if (checkKoritsu[st] == 0) {
-                        if ((posiCurr - checkKoritsu[st]) % 2 == 0) {
-                            if (_nearData[st][posiCurr % 2 + 1] == pr) {
-                                std::swap(_nearData[ci][posiCurr % 2 + 1],
-                                          _nearData[ci][posiCurr % 2 + 3]);
+                    if (checkCycBuf1[st] == 0) {
+                        if ((posiCurr - checkCycBuf1[st]) % 2 == 0) {
+                            if (_overlapEdges[st][posiCurr % 2 + 1] == pr) {
+                                std::swap(_overlapEdges[ci][posiCurr % 2 + 1],
+                                          _overlapEdges[ci][posiCurr % 2 + 3]);
                             }
-                            FormABcycle(1, posiCurr);
+                            BuildABcycle_0(1, posiCurr);
                             if (_numABcycle == nKids) {
                                 goto LLL;
                             }
@@ -365,13 +373,13 @@ void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
                             flagCircle = 1;
                             prType = 1;
                         } else {
-                            std::swap(_nearData[ci][posiCurr % 2 + 1],
-                                      _nearData[ci][posiCurr % 2 + 3]);
+                            std::swap(_overlapEdges[ci][posiCurr % 2 + 1],
+                                      _overlapEdges[ci][posiCurr % 2 + 3]);
                             prType = 2;
                         }
-                        checkKoritsu[st] = posiCurr;
+                        checkCycBuf1[st] = posiCurr;
                     } else {
-                        FormABcycle(2, posiCurr);
+                        BuildABcycle_0(2, posiCurr);
                         if (_numABcycle == nKids) {
                             goto LLL;
                         }
@@ -382,18 +390,18 @@ void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
                         flagSt = 1;
                         flagCircle = 1;
                     }
-                } else if (checkKoritsu[ci] == -1) {
-                    checkKoritsu[ci] = posiCurr;
-                    if (_nearData[ci][posiCurr % 2 + 1] == pr) {
-                        std::swap(_nearData[ci][posiCurr % 2 + 1],
-                                  _nearData[ci][posiCurr % 2 + 3]);
+                } else if (checkCycBuf1[ci] == -1) {
+                    checkCycBuf1[ci] = posiCurr;
+                    if (_overlapEdges[ci][posiCurr % 2 + 1] == pr) {
+                        std::swap(_overlapEdges[ci][posiCurr % 2 + 1],
+                                  _overlapEdges[ci][posiCurr % 2 + 3]);
                     }
                     prType = 2;
-                } else if (checkKoritsu[ci] > 0) {
-                    std::swap(_nearData[ci][posiCurr % 2 + 1],
-                              _nearData[ci][posiCurr % 2 + 3]);
-                    if ((posiCurr - checkKoritsu[ci]) % 2 == 0) {
-                        FormABcycle(1, posiCurr);
+                } else if (checkCycBuf1[ci] > 0) {
+                    std::swap(_overlapEdges[ci][posiCurr % 2 + 1],
+                              _overlapEdges[ci][posiCurr % 2 + 3]);
+                    if ((posiCurr - checkCycBuf1[ci]) % 2 == 0) {
+                        BuildABcycle_0(1, posiCurr);
                         if (_numABcycle == nKids) {
                             goto LLL;
                         }
@@ -405,14 +413,14 @@ void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
                         flagCircle = 1;
                         prType = 1;
                     } else {
-                        std::swap(_nearData[ci][(posiCurr + 1) % 2 + 1],
-                                  _nearData[ci][(posiCurr + 1) % 2 + 3]);
+                        std::swap(_overlapEdges[ci][(posiCurr + 1) % 2 + 1],
+                                  _overlapEdges[ci][(posiCurr + 1) % 2 + 3]);
                         prType = 3;
                     }
                 }
-            } else if (_nearData[ci][0] == 1) {
+            } else if (_overlapEdges[ci][0] == 1) {
                 if (ci == st) {
-                    FormABcycle(1, posiCurr);
+                    BuildABcycle_0(1, posiCurr);
                     if (_numABcycle == nKids) {
                         goto LLL;
                     }
@@ -429,21 +437,21 @@ void Cross::SetABcycle(const Indi& pa1, const Indi& pa2, int nKids)
         }
     }
 
-    while (_bunkiMany != 0) {
+    while (_cycBuf2Num != 0) {
         posiCurr = 0;
-        r = (*_eval->_rand)() % _bunkiMany;
-        st = _bunki[r];
-        _route[posiCurr] = st;
+        r = (*_eval->_rand)() % _cycBuf2Num;
+        st = _cycBuf2[r];
+        _cycRoute[posiCurr] = st;
         ci = st;
 
         flagCircle = 0;
         while (flagCircle == 0) {
             pr = ci;
             posiCurr++;
-            ci = _nearData[pr][posiCurr % 2 + 1];
-            _route[posiCurr] = ci;
+            ci = _overlapEdges[pr][posiCurr % 2 + 1];
+            _cycRoute[posiCurr] = ci;
             if (ci == st) {
-                FormABcycle(1, posiCurr);
+                BuildABcycle_0(1, posiCurr);
                 if (_numABcycle == nKids) {
                     goto LLL;
                 }
@@ -463,67 +471,67 @@ LLL:;
     }
 }
 
-void Cross::FormABcycle(int stAppear, int& posiCurr)
+void Cross::BuildABcycle_0(int stAppear, int& posiCurr)
 {
-    const int st = _route[posiCurr];
+    const int st = _cycRoute[posiCurr];
     int st_count = 0;
     int cem = 0;
-    _cycle[cem] = st;
+    _ABCycle[cem] = st;
 
     while (1) {
         cem++;
         posiCurr--;
-        int ci = _route[posiCurr];
-        if (_nearData[ci][0] == 2) {
-            _koritsu[_koriInv[ci]] = _koritsu[_koritsuMany - 1];
-            _koriInv[_koritsu[_koritsuMany - 1]] = _koriInv[ci];
-            _koritsuMany--;
-            _bunki[_bunkiMany] = ci;
-            _bunInv[ci] = _bunkiMany;
-            _bunkiMany++;
-        } else if (_nearData[ci][0] == 1) {
-            _bunki[_bunInv[ci]] = _bunki[_bunkiMany - 1];
-            _bunInv[_bunki[_bunkiMany - 1]] = _bunInv[ci];
-            _bunkiMany--;
+        int ci = _cycRoute[posiCurr];
+        if (_overlapEdges[ci][0] == 2) {
+            _cycBuf1[_cycBuf1Inv[ci]] = _cycBuf1[_cycBuf1Num - 1];
+            _cycBuf1Inv[_cycBuf1[_cycBuf1Num - 1]] = _cycBuf1Inv[ci];
+            _cycBuf1Num--;
+            _cycBuf2[_cycBuf2Num] = ci;
+            _cycBuf2Inv[ci] = _cycBuf2Num;
+            _cycBuf2Num++;
+        } else if (_overlapEdges[ci][0] == 1) {
+            _cycBuf2[_cycBuf2Inv[ci]] = _cycBuf2[_cycBuf2Num - 1];
+            _cycBuf2Inv[_cycBuf2[_cycBuf2Num - 1]] = _cycBuf2Inv[ci];
+            _cycBuf2Num--;
         }
 
-        _nearData[ci][0]--;
+        _overlapEdges[ci][0]--;
         if (ci == st) {
             st_count++;
         }
         if (st_count == stAppear) {
             break;
         }
-        _cycle[cem] = ci;
+        _ABCycle[cem] = ci;
     }
 
     if (cem == 2) {
         return;
     }
 
-    _ABcycle[_numABcycle][0] = cem;
+    _ABcycleList[_numABcycle][0] = cem;
 
     if (posiCurr % 2 != 0) {
-        int stock = _cycle[0];
+        int stock = _ABCycle[0];
         for (int j = 0; j < cem - 1; j++) {
-            _cycle[j] = _cycle[j + 1];
+            _ABCycle[j] = _ABCycle[j + 1];
         }
-        _cycle[cem - 1] = stock;
+        _ABCycle[cem - 1] = stock;
     }
 
     for (int j = 0; j < cem; j++) {
-        _ABcycle[_numABcycle][j + 2] = _cycle[j];
+        _ABcycleList[_numABcycle][j + 2] = _ABCycle[j];
     }
-    _ABcycle[_numABcycle][1] = _cycle[cem - 1];
-    _ABcycle[_numABcycle][cem + 2] = _cycle[0];
-    _ABcycle[_numABcycle][cem + 3] = _cycle[1];
+    _ABcycleList[_numABcycle][1] = _ABCycle[cem - 1];
+    _ABcycleList[_numABcycle][cem + 2] = _ABCycle[0];
+    _ABcycleList[_numABcycle][cem + 3] = _ABCycle[1];
 
-    _cycle[cem] = _cycle[0];
-    _cycle[cem + 1] = _cycle[1];
+    _ABCycle[cem] = _ABCycle[0];
+    _ABCycle[cem + 1] = _ABCycle[1];
     EvalType diff = 0;
     for (int j = 0; j < cem / 2; ++j) {
-        diff += _eval->_cost[_cycle[2 * j]][_cycle[1 + 2 * j]]
-                - _eval->_cost[_cycle[1 + 2 * j]][_cycle[2 + 2 * j]];
+        diff += _eval->_cost[_ABCycle[2 * j]][_ABCycle[1 + 2 * j]]
+                - _eval->_cost[_ABCycle[1 + 2 * j]][_ABCycle[2 + 2 * j]];
     }
     _gainABcycle[_numABcycle] = diff;
     ++_numABcycle;
@@ -534,24 +542,24 @@ void Cross::ChangeSol(Indi& kid, int idx, bool reverse, bool updateSeg)
     const int n = _numCity;
     int cem, r1, r2, b1, b2;
 
-    cem = _ABcycle[idx][0];
-    _cycle[0] = _ABcycle[idx][0];
+    cem = _ABcycleList[idx][0];
+    _ABCycle[0] = _ABcycleList[idx][0];
 
     if (reverse) {
         for (int j = 0; j < cem + 3; j++) {
-            _cycle[cem + 3 - j] = _ABcycle[idx][j + 1];
+            _ABCycle[cem + 3 - j] = _ABcycleList[idx][j + 1];
         }
     } else {
         for (int j = 1; j <= cem + 3; j++) {
-            _cycle[j] = _ABcycle[idx][j];
+            _ABCycle[j] = _ABcycleList[idx][j];
         }
     }
 
     for (int j = 0; j < cem / 2; j++) {
-        r1 = _cycle[2 + 2 * j];
-        r2 = _cycle[3 + 2 * j];
-        b1 = _cycle[1 + 2 * j];
-        b2 = _cycle[4 + 2 * j];
+        r1 = _ABCycle[2 + 2 * j];
+        r2 = _ABCycle[3 + 2 * j];
+        b1 = _ABCycle[1 + 2 * j];
+        b2 = _ABCycle[4 + 2 * j];
 
         if (kid._link[r1][0] == r2) {
             kid._link[r1][0] = b1;
@@ -569,22 +577,22 @@ void Cross::ChangeSol(Indi& kid, int idx, bool reverse, bool updateSeg)
                 printf("Error: numSPL reach max(%d) in ChangeSol!", n);
                 exit(1);
             }
-            if (_posi[r1] == 0 && _posi[r2] == n - 1) {
-                _segPosiList[_numSPL++] = _posi[r1];
-            } else if (_posi[r1] == n - 1 && _posi[r2] == 0) {
-                _segPosiList[_numSPL++] = _posi[r2];
-            } else if (_posi[r1] < _posi[r2]) {
-                _segPosiList[_numSPL++] = _posi[r2];
-            } else if (_posi[r2] < _posi[r1]) {
-                _segPosiList[_numSPL++] = _posi[r1];
+            if (_pa1RouteInv[r1] == 0 && _pa1RouteInv[r2] == n - 1) {
+                _segPosiList[_numSPL++] = _pa1RouteInv[r1];
+            } else if (_pa1RouteInv[r1] == n - 1 && _pa1RouteInv[r2] == 0) {
+                _segPosiList[_numSPL++] = _pa1RouteInv[r2];
+            } else if (_pa1RouteInv[r1] < _pa1RouteInv[r2]) {
+                _segPosiList[_numSPL++] = _pa1RouteInv[r2];
+            } else if (_pa1RouteInv[r2] < _pa1RouteInv[r1]) {
+                _segPosiList[_numSPL++] = _pa1RouteInv[r1];
             } else {
                 assert(0);
             }
 
-            _linkBPosi[_posi[r1]][1] = _linkBPosi[_posi[r1]][0];
-            _linkBPosi[_posi[r2]][1] = _linkBPosi[_posi[r2]][0];
-            _linkBPosi[_posi[r1]][0] = _posi[b1];
-            _linkBPosi[_posi[r2]][0] = _posi[b2];
+            _linkBPosi[_pa1RouteInv[r1]][1] = _linkBPosi[_pa1RouteInv[r1]][0];
+            _linkBPosi[_pa1RouteInv[r2]][1] = _linkBPosi[_pa1RouteInv[r2]][0];
+            _linkBPosi[_pa1RouteInv[r1]][0] = _pa1RouteInv[b1];
+            _linkBPosi[_pa1RouteInv[r2]][0] = _pa1RouteInv[b2];
         }
     }
 }
@@ -702,6 +710,7 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
     EvalType gainModi = 0;
     constexpr int NearMaxDef = 10;
     int center_un = 0;
+    int numEleInCU = 0;
 
     int st, prev, curr, next, a, b, c, d, aa = 0, bb = 0, a1 = 0, b1 = 0;
 
@@ -718,20 +727,20 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
         for (int s = 0; s < _numSeg; ++s) {
             if (_segUnit[s] == center_un) {
                 int posi = _segment[s][0];
-                st = _path[posi];
+                st = _pa1Route[posi];
             }
         }
         assert(st != -1);
 
         curr = -1;
         next = st;
-        _numElementInCU = 0;
+        numEleInCU = 0;
         while (1) {
             prev = curr;
             curr = next;
             _centerUnit[curr] = 1;
-            _listCenterUnit[_numElementInCU] = curr;
-            ++_numElementInCU;
+            _listCenterUnit[numEleInCU] = curr;
+            ++numEleInCU;
 
             if (kid._link[curr][0] != prev) {
                 next = kid._link[curr][0];
@@ -743,10 +752,10 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
                 break;
             }
         }
-        _listCenterUnit[_numElementInCU] = _listCenterUnit[0];
-        _listCenterUnit[_numElementInCU + 1] = _listCenterUnit[1];
+        _listCenterUnit[numEleInCU] = _listCenterUnit[0];
+        _listCenterUnit[numEleInCU + 1] = _listCenterUnit[1];
 
-        assert(_numElementInCU == _numElementInUnit[center_un]);
+        assert(numEleInCU == _numElementInUnit[center_un]);
 
         EvalType max_diff = std::numeric_limits<EvalType>::min();
         EvalType diff = 0;
@@ -760,7 +769,7 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
         int nearMax = NearMaxDef;
 
     RESTART:;
-        for (int s = 1; s <= _numElementInCU; ++s) {
+        for (int s = 1; s <= numEleInCU; ++s) {
             a = _listCenterUnit[s];
             for (int near_num = 1; near_num <= nearMax; ++near_num) {
                 c = _eval->_near[a][near_num];
@@ -798,7 +807,7 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
             nearMax = _eval->_maxNumNear;
             goto RESTART;
         } else if (a1 == -1 && nearMax == _eval->_maxNumNear) {
-            int r = (*_eval->_rand)() % (_numElementInCU - 1);
+            int r = (*_eval->_rand)() % (numEleInCU - 1);
             a = _listCenterUnit[r];
             b = _listCenterUnit[r + 1];
             for (int j = 0; j < _numCity; ++j) {
@@ -843,7 +852,7 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
 
         gainModi += max_diff;
 
-        int posi_a1 = _posi[a1];
+        int posi_a1 = _pa1RouteInv[a1];
         int select_un = -1;
         for (int s = 0; s < _numSeg; ++s) {
             if (_segment[s][0] <= posi_a1 && posi_a1 <= _segment[s][1]) {
@@ -868,7 +877,7 @@ EvalType Cross::MakeCompleteSol(Indi& kid)
         _numElementInUnit[select_un] = _numElementInUnit[_numUnit - 1];
         --_numUnit;
 
-        for (int s = 0; s < _numElementInCU; ++s) {
+        for (int s = 0; s < numEleInCU; ++s) {
             c = _listCenterUnit[s];
             _centerUnit[c] = 0;
         }
