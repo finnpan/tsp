@@ -23,19 +23,16 @@ void RecordBetterTour()
             BetterTour[i++] = N->Id;
         while ((N = N->Suc) != Stop);
     } else {
-        if (Stop->Id > DimensionSaved)
-            Stop = N = Stop->Suc;
+        if (Stop->Id > DimensionSaved) Stop = N = Stop->Suc;
         if (N->Suc->Id != DimensionSaved + N->Id) {
             int i = 1;
             do
-                if (N->Id <= DimensionSaved)
-                    BetterTour[i++] = N->Id;
+                if (N->Id <= DimensionSaved) BetterTour[i++] = N->Id;
             while ((N = N->Suc) != Stop);
         } else {
             int i = DimensionSaved;
             do
-                if (N->Id <= DimensionSaved)
-                    BetterTour[i--] = N->Id;
+                if (N->Id <= DimensionSaved) BetterTour[i--] = N->Id;
             while ((N = N->Suc) != Stop);
         }
     }
@@ -44,6 +41,5 @@ void RecordBetterTour()
     do {
         N->NextBestSuc = N->BestSuc;
         N->BestSuc = N->Suc;
-    }
-    while ((N = N->Suc) != FirstNode);
+    } while ((N = N->Suc) != FirstNode);
 }

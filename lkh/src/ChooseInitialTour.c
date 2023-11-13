@@ -32,7 +32,7 @@
 void ChooseInitialTour()
 {
     Node *N, *NextN, *FirstAlternative, *Last;
-    Candidate *NN;
+    Candidate* NN;
     int Alternatives, Count, i;
 
     if (KickType > 0 && Kicks > 0 && Trial > 1) {
@@ -43,7 +43,7 @@ void ChooseInitialTour()
         return;
     }
 
-  Start:
+Start:
     /* Mark all nodes as "not chosen" by setting their V field to zero */
     N = FirstNode;
     do
@@ -53,18 +53,15 @@ void ChooseInitialTour()
 
     /* Choose FirstNode without two incident fixed or common candidate edges */
     do {
-        if (FixedCandidates(N) < 2)
-            break;
-    }
-    while ((N = N->Suc) != FirstNode);
+        if (FixedCandidates(N) < 2) break;
+    } while ((N = N->Suc) != FirstNode);
     FirstNode = N;
 
     /* Move nodes with two incident fixed or common candidate edges in
        front of FirstNode */
     for (Last = FirstNode->Pred; N != Last; N = NextN) {
         NextN = N->Suc;
-        if (FixedCandidates(N) == 2)
-            Follow(N, Last);
+        if (FixedCandidates(N) == 2) Follow(N, Last);
     }
 
     /* Mark FirstNode as chosen */
@@ -85,13 +82,12 @@ void ChooseInitialTour()
                 FirstAlternative = NextN;
             }
         }
-        if (Alternatives == 0 && Trial > 1 &&
-            ProblemType != HCP && ProblemType != HPP) {
+        if (Alternatives == 0 && Trial > 1 && ProblemType != HCP
+            && ProblemType != HPP) {
             /* Case C */
             for (NN = N->CandidateSet; NN && (NextN = NN->To); NN++) {
-                if (!NextN->V && FixedCandidates(NextN) < 2 &&
-                    NN->Alpha == 0 && (InBestTour(N, NextN) ||
-                                       InNextBestTour(N, NextN))) {
+                if (!NextN->V && FixedCandidates(NextN) < 2 && NN->Alpha == 0
+                    && (InBestTour(N, NextN) || InNextBestTour(N, NextN))) {
                     Alternatives++;
                     NextN->Next = FirstAlternative;
                     FirstAlternative = NextN;
@@ -111,8 +107,8 @@ void ChooseInitialTour()
         if (Alternatives == 0) {
             /* Case E (actually not really a random choice) */
             NextN = N->Suc;
-            while ((FixedCandidates(NextN) == 2 ||
-                    Forbidden(N, NextN)) && NextN->Suc != FirstNode)
+            while ((FixedCandidates(NextN) == 2 || Forbidden(N, NextN))
+                   && NextN->Suc != FirstNode)
                 NextN = NextN->Suc;
             if (FixedCandidates(NextN) == 2 || Forbidden(N, NextN)) {
                 FirstNode = N;

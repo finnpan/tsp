@@ -207,9 +207,9 @@
 
 static const char Delimiters[] = " :=\n\t\r\f\v\xef\xbb\xbf";
 static void CheckSpecificationPart(void);
-static char *Copy(char *S);
+static char* Copy(char* S);
 static void CreateNodes(void);
-static int FixEdge(Node * Na, Node * Nb);
+static int FixEdge(Node* Na, Node* Nb);
 static void Read_DIMENSION(void);
 static void Read_DISPLAY_DATA_SECTION(void);
 static void Read_DISPLAY_DATA_TYPE(void);
@@ -223,7 +223,7 @@ static void Read_GRID_SIZE(void);
 static void Read_NAME(void);
 static void Read_NODE_COORD_SECTION(void);
 static void Read_NODE_COORD_TYPE(void);
-static void Read_TOUR_SECTION(FILE ** File);
+static void Read_TOUR_SECTION(FILE** File);
 static void Read_TYPE(void);
 
 void ReadProblem()
@@ -247,11 +247,11 @@ void ReadProblem()
     C = 0;
     c = 0;
     while ((Line = ReadLine(ProblemFile))) {
-        if (!(Keyword = strtok(Line, Delimiters)))
-            continue;
-        for (i = 0; i < (int) strlen(Keyword); i++)
-            Keyword[i] = (char) toupper(Keyword[i]);
-        if (!strcmp(Keyword, "COMMENT"));
+        if (!(Keyword = strtok(Line, Delimiters))) continue;
+        for (i = 0; i < (int)strlen(Keyword); i++)
+            Keyword[i] = (char)toupper(Keyword[i]);
+        if (!strcmp(Keyword, "COMMENT"))
+            ;
         else if (!strcmp(Keyword, "DEMAND_SECTION"))
             eprintf("Not implemented: %s", Keyword);
         else if (!strcmp(Keyword, "DEPOT_SECTION"))
@@ -294,61 +294,47 @@ void ReadProblem()
     Swaps = 0;
 
     /* Adjust parameters */
-    if (Seed == 0)
-        Seed = (unsigned) time(0);
-    if (Precision == 0)
-        Precision = 100;
-    if (InitialStepSize == 0)
-        InitialStepSize = 1;
-    if (MaxSwaps < 0)
-        MaxSwaps = Dimension;
-    if (KickType > Dimension / 2)
-        KickType = Dimension / 2;
-    if (Runs == 0)
-        Runs = 10;
-    if (MaxCandidates > Dimension - 1)
-        MaxCandidates = Dimension - 1;
-    if (ExtraCandidates > Dimension - 1)
-        ExtraCandidates = Dimension - 1;
+    if (Seed == 0) Seed = (unsigned)time(0);
+    if (Precision == 0) Precision = 100;
+    if (InitialStepSize == 0) InitialStepSize = 1;
+    if (MaxSwaps < 0) MaxSwaps = Dimension;
+    if (KickType > Dimension / 2) KickType = Dimension / 2;
+    if (Runs == 0) Runs = 10;
+    if (MaxCandidates > Dimension - 1) MaxCandidates = Dimension - 1;
+    if (ExtraCandidates > Dimension - 1) ExtraCandidates = Dimension - 1;
 
-    if (AscentCandidates > Dimension - 1)
-        AscentCandidates = Dimension - 1;
+    if (AscentCandidates > Dimension - 1) AscentCandidates = Dimension - 1;
     if (InitialPeriod < 0) {
         InitialPeriod = Dimension / 2;
-        if (InitialPeriod < 100)
-            InitialPeriod = 100;
+        if (InitialPeriod < 100) InitialPeriod = 100;
     }
-    if (Excess < 0)
-        Excess = 1.0 / Dimension;
-    if (MaxTrials == -1)
-        MaxTrials = Dimension;
+    if (Excess < 0) Excess = 1.0 / Dimension;
+    if (MaxTrials == -1) MaxTrials = Dimension;
     HeapMake(Dimension);
 
-    if (CostMatrix == 0 && Dimension <= MaxMatrixDimension &&
-        Distance != 0 && Distance != Distance_1 && Distance != Distance_LARGE &&
-        Distance != Distance_ATSP && Distance != Distance_SPECIAL) {
+    if (CostMatrix == 0 && Dimension <= MaxMatrixDimension && Distance != 0
+        && Distance != Distance_1 && Distance != Distance_LARGE
+        && Distance != Distance_ATSP && Distance != Distance_SPECIAL) {
         Node *Ni, *Nj;
-        CostMatrix = (int *) calloc((size_t) Dimension * (Dimension - 1) / 2,
-                                    sizeof(int));
+        CostMatrix =
+            (int*)calloc((size_t)Dimension * (Dimension - 1) / 2, sizeof(int));
         Ni = FirstNode->Suc;
         do {
-            Ni->C =
-                &CostMatrix[(size_t) (Ni->Id - 1) * (Ni->Id - 2) / 2] - 1;
+            Ni->C = &CostMatrix[(size_t)(Ni->Id - 1) * (Ni->Id - 2) / 2] - 1;
             if (ProblemType != HPP || Ni->Id < Dimension)
                 for (Nj = FirstNode; Nj != Ni; Nj = Nj->Suc)
                     Ni->C[Nj->Id] = Fixed(Ni, Nj) ? 0 : Distance(Ni, Nj);
             else
                 for (Nj = FirstNode; Nj != Ni; Nj = Nj->Suc)
                     Ni->C[Nj->Id] = 0;
-        }
-        while ((Ni = Ni->Suc) != FirstNode);
+        } while ((Ni = Ni->Suc) != FirstNode);
         WeightType = EXPLICIT;
         c = 0;
     }
     if (Precision > 1 && (WeightType == EXPLICIT || ProblemType == ATSP)) {
         int j, n = ProblemType == ATSP ? Dimension / 2 : Dimension;
         for (i = 2; i <= n; i++) {
-            Node *N = &NodeSet[i];
+            Node* N = &NodeSet[i];
             for (j = 1; j < i; j++)
                 if (N->C[j] * Precision / Precision != N->C[j])
                     eprintf("PRECISION (= %d) is too large", Precision);
@@ -356,42 +342,37 @@ void ReadProblem()
     }
     C = WeightType == EXPLICIT ? C_EXPLICIT : C_FUNCTION;
     D = WeightType == EXPLICIT ? D_EXPLICIT : D_FUNCTION;
-    if (SubsequentMoveType == 0)
-        SubsequentMoveType = MoveType;
-    K = MoveType >= SubsequentMoveType
-        || !SubsequentPatching ? MoveType : SubsequentMoveType;
-    if (PatchingC > K)
-        PatchingC = K;
+    if (SubsequentMoveType == 0) SubsequentMoveType = MoveType;
+    K = MoveType >= SubsequentMoveType || !SubsequentPatching
+            ? MoveType
+            : SubsequentMoveType;
+    if (PatchingC > K) PatchingC = K;
     if (PatchingA > 1 && PatchingA >= PatchingC)
         PatchingA = PatchingC > 2 ? PatchingC - 1 : 1;
-    if (NonsequentialMoveType == -1 ||
-        NonsequentialMoveType > K + PatchingC + PatchingA - 1)
+    if (NonsequentialMoveType == -1
+        || NonsequentialMoveType > K + PatchingC + PatchingA - 1)
         NonsequentialMoveType = K + PatchingC + PatchingA - 1;
     if (PatchingC >= 1) {
         BestMove = BestSubsequentMove = BestKOptMove;
         if (!SubsequentPatching && SubsequentMoveType <= 5) {
-            MoveFunction BestOptMove[] =
-                { 0, 0, Best2OptMove, Best3OptMove,
-                Best4OptMove, Best5OptMove
-            };
+            MoveFunction BestOptMove[] = {
+                0, 0, Best2OptMove, Best3OptMove, Best4OptMove, Best5OptMove};
             BestSubsequentMove = BestOptMove[SubsequentMoveType];
         }
     } else {
-        MoveFunction BestOptMove[] = { 0, 0, Best2OptMove, Best3OptMove,
-            Best4OptMove, Best5OptMove
-        };
+        MoveFunction BestOptMove[] = {
+            0, 0, Best2OptMove, Best3OptMove, Best4OptMove, Best5OptMove};
         BestMove = MoveType <= 5 ? BestOptMove[MoveType] : BestKOptMove;
-        BestSubsequentMove = SubsequentMoveType <= 5 ?
-            BestOptMove[SubsequentMoveType] : BestKOptMove;
+        BestSubsequentMove = SubsequentMoveType <= 5
+                                 ? BestOptMove[SubsequentMoveType]
+                                 : BestKOptMove;
     }
-    if (ProblemType == HCP || ProblemType == HPP)
-        MaxCandidates = 0;
+    if (ProblemType == HCP || ProblemType == HPP) MaxCandidates = 0;
     if (TraceLevel >= 1) {
         printff("done\n");
         PrintParameters();
     } else
-        printff("PROBLEM_FILE = %s\n",
-                ProblemFileName ? ProblemFileName : "");
+        printff("PROBLEM_FILE = %s\n", ProblemFileName ? ProblemFileName : "");
     fclose(ProblemFile);
     free(LastLine);
     LastLine = 0;
@@ -399,33 +380,29 @@ void ReadProblem()
 
 static void CheckSpecificationPart()
 {
-    if (ProblemType == -1)
-        eprintf("TYPE is missing");
-    if (Dimension < 3)
-        eprintf("DIMENSION < 3 or not specified");
-    if (WeightType == -1 && ProblemType != ATSP && ProblemType != HCP &&
-        ProblemType != HPP && !EdgeWeightType)
+    if (ProblemType == -1) eprintf("TYPE is missing");
+    if (Dimension < 3) eprintf("DIMENSION < 3 or not specified");
+    if (WeightType == -1 && ProblemType != ATSP && ProblemType != HCP
+        && ProblemType != HPP && !EdgeWeightType)
         eprintf("EDGE_WEIGHT_TYPE is missing");
     if (WeightType == EXPLICIT && WeightFormat == -1 && !EdgeWeightFormat)
         eprintf("EDGE_WEIGHT_FORMAT is missing");
     if (WeightType == EXPLICIT && WeightFormat == FUNCTION)
         eprintf("Conflicting EDGE_WEIGHT_TYPE and EDGE_WEIGHT_FORMAT");
     if (WeightType != EXPLICIT
-        && (WeightType != SPECIAL || CoordType != NO_COORDS)
-        && WeightType != -1 && WeightFormat != -1
-        && WeightFormat != FUNCTION)
+        && (WeightType != SPECIAL || CoordType != NO_COORDS) && WeightType != -1
+        && WeightFormat != -1 && WeightFormat != FUNCTION)
         eprintf("Conflicting EDGE_WEIGHT_TYPE and EDGE_WEIGHT_FORMAT");
     if (ProblemType == ATSP && WeightType != EXPLICIT && WeightType != -1)
         eprintf("Conflicting TYPE and EDGE_WEIGHT_TYPE");
 }
 
-static char *Copy(char *S)
+static char* Copy(char* S)
 {
-    char *Buffer;
+    char* Buffer;
 
-    if (!S || strlen(S) == 0)
-        return 0;
-    Buffer = (char *) malloc(strlen(S) + 1);
+    if (!S || strlen(S) == 0) return 0;
+    Buffer = (char*)malloc(strlen(S) + 1);
     strcpy(Buffer, S);
     return Buffer;
 }
@@ -435,8 +412,7 @@ static void CreateNodes()
     Node *Prev = 0, *N = 0;
     int i;
 
-    if (Dimension <= 0)
-        eprintf("DIMENSION is not positive (or not specified)");
+    if (Dimension <= 0) eprintf("DIMENSION is not positive (or not specified)");
     if (ProblemType == ATSP)
         Dimension *= 2;
     else if (ProblemType == HPP) {
@@ -444,7 +420,7 @@ static void CreateNodes()
         if (Dimension > MaxMatrixDimension)
             eprintf("Dimension too large in HPP problem");
     }
-    NodeSet = (Node *) calloc(Dimension + 1, sizeof(Node));
+    NodeSet = (Node*)calloc(Dimension + 1, sizeof(Node));
     for (i = 1; i <= Dimension; i++, Prev = N) {
         N = &NodeSet[i];
         if (i == 1)
@@ -456,7 +432,7 @@ static void CreateNodes()
     Link(N, FirstNode);
 }
 
-static int FixEdge(Node * Na, Node * Nb)
+static int FixEdge(Node* Na, Node* Nb)
 {
     if (!Na->FixedTo1 || Na->FixedTo1 == Nb)
         Na->FixedTo1 = Nb;
@@ -476,13 +452,12 @@ static int FixEdge(Node * Na, Node * Nb)
 static void Read_NAME()
 {
     free(Name);
-    if (!(Name = Copy(strtok(0, Delimiters))))
-        eprintf("NAME: string expected");
+    if (!(Name = Copy(strtok(0, Delimiters)))) eprintf("NAME: string expected");
 }
 
 static void Read_DIMENSION()
 {
-    char *Token = strtok(0, Delimiters);
+    char* Token = strtok(0, Delimiters);
 
     if (!Token || !sscanf(Token, "%d", &Dimension))
         eprintf("DIMENSION: integer expected");
@@ -491,18 +466,15 @@ static void Read_DIMENSION()
 
 static void Read_DISPLAY_DATA_SECTION()
 {
-    Node *N;
+    Node* N;
     int Id, i;
 
     CheckSpecificationPart();
-    if (ProblemType == HPP)
-        Dimension--;
+    if (ProblemType == HPP) Dimension--;
     if (!DisplayDataType || strcmp(DisplayDataType, "TWOD_DISPLAY"))
-        eprintf
-            ("DISPLAY_DATA_SECTION conflicts with DISPLAY_DATA_TYPE: %s",
-             DisplayDataType);
-    if (!FirstNode)
-        CreateNodes();
+        eprintf("DISPLAY_DATA_SECTION conflicts with DISPLAY_DATA_TYPE: %s",
+                DisplayDataType);
+    if (!FirstNode) CreateNodes();
     N = FirstNode;
     do
         N->V = 0;
@@ -511,31 +483,25 @@ static void Read_DISPLAY_DATA_SECTION()
         if (!fscanint(ProblemFile, &Id))
             eprintf("DIPLAY_DATA_SECTION: Missing nodes");
         if (Id <= 0 || Id > Dimension)
-            eprintf("DIPLAY_DATA_SECTION: Node number out of range: %d",
-                    Id);
+            eprintf("DIPLAY_DATA_SECTION: Node number out of range: %d", Id);
         N = &NodeSet[Id];
         if (N->V == 1)
-            eprintf("DIPLAY_DATA_SECTION: Node number occurs twice: %d",
-                    N->Id);
+            eprintf("DIPLAY_DATA_SECTION: Node number occurs twice: %d", N->Id);
         N->V = 1;
         if (!fscanf(ProblemFile, "%lf", &N->X))
             eprintf("DISPLAY_DATA_SECTION: Missing X-coordinate");
         if (!fscanf(ProblemFile, "%lf", &N->Y))
             eprintf("DISPLAY_DATA_SECTION: Missing Y-coordinate");
-        if (CoordType == THREED_COORDS
-            && !fscanf(ProblemFile, "%lf", &N->Z))
+        if (CoordType == THREED_COORDS && !fscanf(ProblemFile, "%lf", &N->Z))
             eprintf("DISPLAY_DATA_SECTION: Missing Z-coordinate");
     }
     N = FirstNode;
     do
-        if (!N->V)
-            break;
+        if (!N->V) break;
     while ((N = N->Suc) != FirstNode);
     if (!N->V)
-        eprintf("DIPLAY_DATA_SECTION: No coordinates given for node %d",
-                N->Id);
-    if (ProblemType == HPP)
-        Dimension++;
+        eprintf("DIPLAY_DATA_SECTION: No coordinates given for node %d", N->Id);
+    if (ProblemType == HPP) Dimension++;
 }
 
 static void Read_DISPLAY_DATA_TYPE()
@@ -546,10 +512,10 @@ static void Read_DISPLAY_DATA_TYPE()
     if (!(DisplayDataType = Copy(strtok(0, Delimiters))))
         eprintf("DISPLAY_DATA_TYPE: string expected");
     for (i = 0; i < strlen(DisplayDataType); i++)
-        DisplayDataType[i] = (char) toupper(DisplayDataType[i]);
-    if (strcmp(DisplayDataType, "COORD_DISPLAY") &&
-        strcmp(DisplayDataType, "TWOD_DISPLAY") &&
-        strcmp(DisplayDataType, "NO_DISPLAY"))
+        DisplayDataType[i] = (char)toupper(DisplayDataType[i]);
+    if (strcmp(DisplayDataType, "COORD_DISPLAY")
+        && strcmp(DisplayDataType, "TWOD_DISPLAY")
+        && strcmp(DisplayDataType, "NO_DISPLAY"))
         eprintf("Unknown DISPLAY_DATA_TYPE: %s", DisplayDataType);
 }
 
@@ -560,9 +526,9 @@ static void Read_EDGE_DATA_FORMAT()
     if (!(EdgeDataFormat = Copy(strtok(0, Delimiters))))
         eprintf("EDGE_DATA_FORMAT: string expected");
     for (i = 0; i < strlen(EdgeDataFormat); i++)
-        EdgeDataFormat[i] = (char) toupper(EdgeDataFormat[i]);
-    if (strcmp(EdgeDataFormat, "EDGE_LIST") &&
-        strcmp(EdgeDataFormat, "ADJ_LIST"))
+        EdgeDataFormat[i] = (char)toupper(EdgeDataFormat[i]);
+    if (strcmp(EdgeDataFormat, "EDGE_LIST")
+        && strcmp(EdgeDataFormat, "ADJ_LIST"))
         eprintf("Unknown EDGE_DATA_FORMAT: %s", EdgeDataFormat);
 }
 
@@ -570,72 +536,50 @@ static void Read_EDGE_DATA_SECTION()
 {
     Node *Ni, *Nj;
     int i, j, W = 0, WithWeights = 0, FirstLine = 1;
-    char *Line;
+    char* Line;
 
     CheckSpecificationPart();
-    if (!EdgeDataFormat)
-        eprintf("Missing EDGE_DATA_FORMAT specification");
-    if (!FirstNode)
-        CreateNodes();
-    if (ProblemType == HPP)
-        Dimension--;
+    if (!EdgeDataFormat) eprintf("Missing EDGE_DATA_FORMAT specification");
+    if (!FirstNode) CreateNodes();
+    if (ProblemType == HPP) Dimension--;
     if (!strcmp(EdgeDataFormat, "EDGE_LIST")) {
         Line = ReadLine(ProblemFile);
-        if (sscanf(Line, "%d %d %d\n", &i, &j, &W) == 3)
-            WithWeights = 1;
+        if (sscanf(Line, "%d %d %d\n", &i, &j, &W) == 3) WithWeights = 1;
         while (i != -1) {
-            if (i <= 0 ||
-                i > (ProblemType != ATSP ? Dimension : Dimension / 2))
-                eprintf("EDGE_DATA_SECTION: Node number out of range: %d",
-                        i);
-            if (!FirstLine)
-                fscanint(ProblemFile, &j);
-            if (j <= 0
-                || j > (ProblemType !=
-                        ATSP ? Dimension : Dimension / 2))
-                eprintf
-                    ("EDGE_DATA_SECTION: Node number out of range: %d",
-                     j);
+            if (i <= 0 || i > (ProblemType != ATSP ? Dimension : Dimension / 2))
+                eprintf("EDGE_DATA_SECTION: Node number out of range: %d", i);
+            if (!FirstLine) fscanint(ProblemFile, &j);
+            if (j <= 0 || j > (ProblemType != ATSP ? Dimension : Dimension / 2))
+                eprintf("EDGE_DATA_SECTION: Node number out of range: %d", j);
             if (i == j)
-                eprintf("EDGE_DATA_SECTION: Illegal edge: %d to %d",
-                        i, j);
-            if (ProblemType == ATSP)
-                j += Dimension / 2;
+                eprintf("EDGE_DATA_SECTION: Illegal edge: %d to %d", i, j);
+            if (ProblemType == ATSP) j += Dimension / 2;
             Ni = &NodeSet[i];
             Nj = &NodeSet[j];
             if (WithWeights) {
-                if (!FirstLine)
-                    fscanint(ProblemFile, &W);
+                if (!FirstLine) fscanint(ProblemFile, &W);
                 W *= Precision;
             }
             AddCandidate(Ni, Nj, W, 1);
             AddCandidate(Nj, Ni, W, 1);
             FirstLine = 0;
-            if (!fscanint(ProblemFile, &i))
-                i = -1;
+            if (!fscanint(ProblemFile, &i)) i = -1;
         }
     } else if (!strcmp(EdgeDataFormat, "ADJ_LIST")) {
-        if (!fscanint(ProblemFile, &i))
-            i = -1;
+        if (!fscanint(ProblemFile, &i)) i = -1;
         while (i != -1) {
-            if (i <= 0 ||
-                i > (ProblemType != ATSP ? Dimension : Dimension / 2))
-                eprintf
-                    ("EDGE_DATA_SECTION: Node number out of range: %d",
-                     i);
+            if (i <= 0 || i > (ProblemType != ATSP ? Dimension : Dimension / 2))
+                eprintf("EDGE_DATA_SECTION: Node number out of range: %d", i);
             Ni = &NodeSet[i];
             fscanint(ProblemFile, &j);
             while (j != -1) {
-                if (j <= 0 ||
-                    j > (ProblemType != ATSP ? Dimension : Dimension / 2))
-                    eprintf
-                        ("EDGE_DATA_SECTION: Node number out of range: %d",
-                         j);
+                if (j <= 0
+                    || j > (ProblemType != ATSP ? Dimension : Dimension / 2))
+                    eprintf("EDGE_DATA_SECTION: Node number out of range: %d",
+                            j);
                 if (i == j)
-                    eprintf("EDGE_DATA_SECTION: Illgal edge: %d to %d",
-                            i, j);
-                if (ProblemType == ATSP)
-                    j += Dimension / 2;
+                    eprintf("EDGE_DATA_SECTION: Illgal edge: %d to %d", i, j);
+                if (ProblemType == ATSP) j += Dimension / 2;
                 Nj = &NodeSet[j];
                 AddCandidate(Ni, Nj, 0, 1);
                 AddCandidate(Nj, Ni, 0, 1);
@@ -645,8 +589,7 @@ static void Read_EDGE_DATA_SECTION()
         }
     } else
         eprintf("EDGE_DATA_SECTION: No EDGE_DATA_FORMAT specified");
-    if (ProblemType == HPP)
-        Dimension++;
+    if (ProblemType == HPP) Dimension++;
     if (ProblemType == ATSP) {
         for (i = 1; i <= DimensionSaved; i++)
             FixEdge(&NodeSet[i], &NodeSet[i + DimensionSaved]);
@@ -664,7 +607,7 @@ static void Read_EDGE_WEIGHT_FORMAT()
     if (!(EdgeWeightFormat = Copy(strtok(0, Delimiters))))
         eprintf("EDGE_WEIGHT_FORMAT: string expected");
     for (i = 0; i < strlen(EdgeWeightFormat); i++)
-        EdgeWeightFormat[i] = (char) toupper(EdgeWeightFormat[i]);
+        EdgeWeightFormat[i] = (char)toupper(EdgeWeightFormat[i]);
     if (!strcmp(EdgeWeightFormat, "FUNCTION"))
         WeightFormat = FUNCTION;
     else if (!strcmp(EdgeWeightFormat, "FULL_MATRIX"))
@@ -695,170 +638,170 @@ static void Read_EDGE_WEIGHT_SECTION()
     int i, j, n, W;
 
     CheckSpecificationPart();
-    if (!FirstNode)
-        CreateNodes();
+    if (!FirstNode) CreateNodes();
     if (ProblemType != ATSP) {
-        CostMatrix = (int *) calloc((size_t) Dimension * (Dimension - 1) / 2,
-                                    sizeof(int));
+        CostMatrix =
+            (int*)calloc((size_t)Dimension * (Dimension - 1) / 2, sizeof(int));
         Ni = FirstNode->Suc;
         do {
-            Ni->C =
-                &CostMatrix[(size_t) (Ni->Id - 1) * (Ni->Id - 2) / 2] - 1;
-        }
-        while ((Ni = Ni->Suc) != FirstNode);
+            Ni->C = &CostMatrix[(size_t)(Ni->Id - 1) * (Ni->Id - 2) / 2] - 1;
+        } while ((Ni = Ni->Suc) != FirstNode);
     } else {
         n = Dimension / 2;
-        CostMatrix = (int *) calloc((size_t) n * n, sizeof(int));
+        CostMatrix = (int*)calloc((size_t)n * n, sizeof(int));
         for (Ni = FirstNode; Ni->Id <= n; Ni = Ni->Suc)
-            Ni->C = &CostMatrix[(size_t) (Ni->Id - 1) * n] - 1;
+            Ni->C = &CostMatrix[(size_t)(Ni->Id - 1) * n] - 1;
     }
-    if (ProblemType == HPP)
-        Dimension--;
+    if (ProblemType == HPP) Dimension--;
     switch (WeightFormat) {
-    case FULL_MATRIX:
-        if (ProblemType == ATSP) {
-            n = Dimension / 2;
-            for (i = 1; i <= n; i++) {
-                Ni = &NodeSet[i];
-                for (j = 1; j <= n; j++) {
-                    if (!fscanint(ProblemFile, &W))
-                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                    if (j != i && W > INT_MAX / 2 / Precision)
-                        eprintf("EDGE_WEIGHT_SECTION: "
-                                "Weight %d > INT_MAX / 2 / PRECISION", W);
-                    Ni->C[j] = W;
-                    if (i != j && W > M)
-                        M = W;
+        case FULL_MATRIX:
+            if (ProblemType == ATSP) {
+                n = Dimension / 2;
+                for (i = 1; i <= n; i++) {
+                    Ni = &NodeSet[i];
+                    for (j = 1; j <= n; j++) {
+                        if (!fscanint(ProblemFile, &W))
+                            eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                        if (j != i && W > INT_MAX / 2 / Precision)
+                            eprintf("EDGE_WEIGHT_SECTION: "
+                                    "Weight %d > INT_MAX / 2 / PRECISION",
+                                    W);
+                        Ni->C[j] = W;
+                        if (i != j && W > M) M = W;
+                    }
+                    Nj = &NodeSet[i + n];
+                    FixEdge(Ni, Nj);
                 }
-                Nj = &NodeSet[i + n];
-                FixEdge(Ni, Nj);
-            }
-            Distance = Distance_ATSP;
-            WeightType = -1;
-        } else
-            for (i = 1, Ni = FirstNode; i <= Dimension; i++, Ni = Ni->Suc) {
-                for (j = 1; j <= Dimension; j++) {
+                Distance = Distance_ATSP;
+                WeightType = -1;
+            } else
+                for (i = 1, Ni = FirstNode; i <= Dimension; i++, Ni = Ni->Suc) {
+                    for (j = 1; j <= Dimension; j++) {
+                        if (!fscanint(ProblemFile, &W))
+                            eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                        if (j == i) continue;
+                        if (W > INT_MAX / 2 / Precision)
+                            eprintf("EDGE_WEIGHT_SECTION: "
+                                    "Weight %d > INT_MAX / 2 / PRECISION",
+                                    W);
+                        if (j < i) Ni->C[j] = W;
+                    }
+                }
+            break;
+        case UPPER_ROW:
+            for (i = 1, Ni = FirstNode; i < Dimension; i++, Ni = Ni->Suc) {
+                for (j = i + 1, Nj = Ni->Suc; j <= Dimension;
+                     j++, Nj = Nj->Suc) {
                     if (!fscanint(ProblemFile, &W))
                         eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                    if (j == i)
-                        continue;
                     if (W > INT_MAX / 2 / Precision)
                         eprintf("EDGE_WEIGHT_SECTION: "
-                                "Weight %d > INT_MAX / 2 / PRECISION", W);
-                    if (j < i)
-                        Ni->C[j] = W;
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Nj->C[i] = W;
                 }
             }
-        break;
-    case UPPER_ROW:
-        for (i = 1, Ni = FirstNode; i < Dimension; i++, Ni = Ni->Suc) {
-            for (j = i + 1, Nj = Ni->Suc; j <= Dimension;
-                 j++, Nj = Nj->Suc) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Nj->C[i] = W;
-            }
-        }
-        break;
-    case LOWER_ROW:
-        for (i = 2, Ni = FirstNode->Suc; i <= Dimension; i++, Ni = Ni->Suc) {
-            for (j = 1; j < i; j++) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Ni->C[j] = W;
-            }
-        }
-        break;
-    case UPPER_DIAG_ROW:
-        for (i = 1, Ni = FirstNode; i <= Dimension; i++, Ni = Ni->Suc) {
-            for (j = i, Nj = Ni; j <= Dimension; j++, Nj = Nj->Suc) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (j == i)
-                    continue;
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Nj->C[i] = W;
-            }
-        }
-        break;
-    case LOWER_DIAG_ROW:
-        for (i = 1, Ni = FirstNode; i <= Dimension; i++, Ni = Ni->Suc) {
-            for (j = 1; j <= i; j++) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (j == i)
-                    continue;
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Ni->C[j] = W;
-            }
-        }
-        break;
-    case UPPER_COL:
-        for (j = 2, Nj = FirstNode->Suc; j <= Dimension; j++, Nj = Nj->Suc) {
-            for (i = 1; i < j; i++) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Nj->C[i] = W;
-            }
-        }
-        break;
-    case LOWER_COL:
-        for (j = 1, Nj = FirstNode; j < Dimension; j++, Nj = Nj->Suc) {
-            for (i = j + 1, Ni = Nj->Suc; i <= Dimension;
+            break;
+        case LOWER_ROW:
+            for (i = 2, Ni = FirstNode->Suc; i <= Dimension;
                  i++, Ni = Ni->Suc) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Ni->C[j] = W;
+                for (j = 1; j < i; j++) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Ni->C[j] = W;
+                }
             }
-        }
-        break;
-    case UPPER_DIAG_COL:
-        for (j = 1, Nj = FirstNode; j <= Dimension; j++, Nj = Nj->Suc) {
-            for (i = 1; i <= j; i++) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (j == i)
-                    continue;
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Nj->C[i] = W;
+            break;
+        case UPPER_DIAG_ROW:
+            for (i = 1, Ni = FirstNode; i <= Dimension; i++, Ni = Ni->Suc) {
+                for (j = i, Nj = Ni; j <= Dimension; j++, Nj = Nj->Suc) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (j == i) continue;
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Nj->C[i] = W;
+                }
             }
-        }
-        break;
-    case LOWER_DIAG_COL:
-        for (j = 1, Nj = FirstNode; j <= Dimension; j++, Nj = Nj->Suc) {
-            for (i = j, Ni = Nj; i <= Dimension; i++, Ni = Ni->Suc) {
-                if (!fscanint(ProblemFile, &W))
-                    eprintf("EDGE_WEIGHT_SECTION: Missing weight");
-                if (j == i)
-                    continue;
-                if (W > INT_MAX / 2 / Precision)
-                    eprintf("EDGE_WEIGHT_SECTION: "
-                            "Weight %d > INT_MAX / 2 / PRECISION", W);
-                Ni->C[j] = W;
+            break;
+        case LOWER_DIAG_ROW:
+            for (i = 1, Ni = FirstNode; i <= Dimension; i++, Ni = Ni->Suc) {
+                for (j = 1; j <= i; j++) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (j == i) continue;
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Ni->C[j] = W;
+                }
             }
-        }
-        break;
+            break;
+        case UPPER_COL:
+            for (j = 2, Nj = FirstNode->Suc; j <= Dimension;
+                 j++, Nj = Nj->Suc) {
+                for (i = 1; i < j; i++) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Nj->C[i] = W;
+                }
+            }
+            break;
+        case LOWER_COL:
+            for (j = 1, Nj = FirstNode; j < Dimension; j++, Nj = Nj->Suc) {
+                for (i = j + 1, Ni = Nj->Suc; i <= Dimension;
+                     i++, Ni = Ni->Suc) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Ni->C[j] = W;
+                }
+            }
+            break;
+        case UPPER_DIAG_COL:
+            for (j = 1, Nj = FirstNode; j <= Dimension; j++, Nj = Nj->Suc) {
+                for (i = 1; i <= j; i++) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (j == i) continue;
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Nj->C[i] = W;
+                }
+            }
+            break;
+        case LOWER_DIAG_COL:
+            for (j = 1, Nj = FirstNode; j <= Dimension; j++, Nj = Nj->Suc) {
+                for (i = j, Ni = Nj; i <= Dimension; i++, Ni = Ni->Suc) {
+                    if (!fscanint(ProblemFile, &W))
+                        eprintf("EDGE_WEIGHT_SECTION: Missing weight");
+                    if (j == i) continue;
+                    if (W > INT_MAX / 2 / Precision)
+                        eprintf("EDGE_WEIGHT_SECTION: "
+                                "Weight %d > INT_MAX / 2 / PRECISION",
+                                W);
+                    Ni->C[j] = W;
+                }
+            }
+            break;
     }
-    if (ProblemType == HPP)
-        Dimension++;
+    if (ProblemType == HPP) Dimension++;
 }
 
 static void Read_EDGE_WEIGHT_TYPE()
@@ -869,7 +812,7 @@ static void Read_EDGE_WEIGHT_TYPE()
     if (!(EdgeWeightType = Copy(strtok(0, Delimiters))))
         eprintf("EDGE_WEIGHT_TYPE: string expected");
     for (i = 0; i < strlen(EdgeWeightType); i++)
-        EdgeWeightType[i] = (char) toupper(EdgeWeightType[i]);
+        EdgeWeightType[i] = (char)toupper(EdgeWeightType[i]);
     if (!strcmp(EdgeWeightType, "ATT")) {
         WeightType = ATT;
         Distance = Distance_ATT;
@@ -973,22 +916,15 @@ static void Read_FIXED_EDGES_SECTION()
     int i, j, Count = 0;
 
     CheckSpecificationPart();
-    if (!FirstNode)
-        CreateNodes();
-    if (ProblemType == HPP)
-        Dimension--;
-    if (!fscanint(ProblemFile, &i))
-        i = -1;
+    if (!FirstNode) CreateNodes();
+    if (ProblemType == HPP) Dimension--;
+    if (!fscanint(ProblemFile, &i)) i = -1;
     while (i != -1) {
-        if (i <= 0
-            || i > (ProblemType != ATSP ? Dimension : Dimension / 2))
-            eprintf("FIXED_EDGES_SECTION: Node number out of range: %d",
-                    i);
+        if (i <= 0 || i > (ProblemType != ATSP ? Dimension : Dimension / 2))
+            eprintf("FIXED_EDGES_SECTION: Node number out of range: %d", i);
         fscanint(ProblemFile, &j);
-        if (j <= 0
-            || j > (ProblemType != ATSP ? Dimension : Dimension / 2))
-            eprintf("FIXED_EDGES_SECTION: Node number out of range: %d",
-                    j);
+        if (j <= 0 || j > (ProblemType != ATSP ? Dimension : Dimension / 2))
+            eprintf("FIXED_EDGES_SECTION: Node number out of range: %d", j);
         if (i == j)
             eprintf("FIXED_EDGES_SECTION: Illegal edge: %d to %d", i, j);
         Ni = &NodeSet[i];
@@ -1005,73 +941,62 @@ static void Read_FIXED_EDGES_SECTION()
         } while ((N = NNext) && N != Ni);
         if (N == Ni && Count != Dimension)
             eprintf("FIXED_EDGES_SECTION: Illegal fix: %d to %d", i, j);
-        if (!fscanint(ProblemFile, &i))
-            i = -1;
+        if (!fscanint(ProblemFile, &i)) i = -1;
     }
-    if (ProblemType == HPP)
-        Dimension++;
+    if (ProblemType == HPP) Dimension++;
 }
 
 static void Read_GRID_SIZE()
 {
-    char *Token = strtok(0, Delimiters);
+    char* Token = strtok(0, Delimiters);
 
     if (!Token || !sscanf(Token, "%lf", &GridSize))
         eprintf("GRID_SIZE: real expected");
-    if (GridSize < 0)
-        eprintf("GRID_SIZE: non-negative real expected");
+    if (GridSize < 0) eprintf("GRID_SIZE: non-negative real expected");
 }
 
 static void Read_NODE_COORD_SECTION()
 {
-    Node *N;
+    Node* N;
     int Id, i;
 
     CheckSpecificationPart();
     if (CoordType != TWOD_COORDS && CoordType != THREED_COORDS)
         eprintf("NODE_COORD_SECTION conflicts with NODE_COORD_TYPE: %s",
                 NodeCoordType);
-    if (!FirstNode)
-        CreateNodes();
+    if (!FirstNode) CreateNodes();
     N = FirstNode;
     do
         N->V = 0;
     while ((N = N->Suc) != FirstNode);
-    if (ProblemType == HPP)
-        Dimension--;
+    if (ProblemType == HPP) Dimension--;
     for (i = 1; i <= Dimension; i++) {
         if (!fscanint(ProblemFile, &Id))
             eprintf("NODE_COORD_SECTION: Missing nodes");
         if (Id <= 0 || Id > Dimension)
-            eprintf("NODE_COORD_SECTION: Node number out of range: %d",
-                    Id);
+            eprintf("NODE_COORD_SECTION: Node number out of range: %d", Id);
         N = &NodeSet[Id];
         if (N->V == 1)
-            eprintf("NODE_COORD_SECTION: Node number occurs twice: %d",
-                    N->Id);
+            eprintf("NODE_COORD_SECTION: Node number occurs twice: %d", N->Id);
         N->V = 1;
         if (!fscanf(ProblemFile, "%lf", &N->X))
             eprintf("NODE_COORD_SECTION : Missing X-coordinate");
         if (!fscanf(ProblemFile, "%lf", &N->Y))
             eprintf("NODE_COORD_SECTION: Missing Y-coordinate");
-        if (CoordType == THREED_COORDS
-            && !fscanf(ProblemFile, "%lf", &N->Z))
+        if (CoordType == THREED_COORDS && !fscanf(ProblemFile, "%lf", &N->Z))
             eprintf("NODE_COORD_SECTION: Missing Z-coordinate");
         if (Name && !strcmp(Name, "d657")) {
-            N->X = (float) N->X;
-            N->Y = (float) N->Y;
+            N->X = (float)N->X;
+            N->Y = (float)N->Y;
         }
     }
     N = FirstNode;
     do
-        if (!N->V && N->Id <= Dimension)
-            break;
+        if (!N->V && N->Id <= Dimension) break;
     while ((N = N->Suc) != FirstNode);
     if (!N->V)
-        eprintf("NODE_COORD_SECTION: No coordinates given for node %d",
-                N->Id);
-    if (ProblemType == HPP)
-        Dimension++;
+        eprintf("NODE_COORD_SECTION: No coordinates given for node %d", N->Id);
+    if (ProblemType == HPP) Dimension++;
 }
 
 static void Read_NODE_COORD_TYPE()
@@ -1082,7 +1007,7 @@ static void Read_NODE_COORD_TYPE()
     if (!(NodeCoordType = Copy(strtok(0, Delimiters))))
         eprintf("NODE_COORD_TYPE: string expected");
     for (i = 0; i < strlen(NodeCoordType); i++)
-        NodeCoordType[i] = (char) toupper(NodeCoordType[i]);
+        NodeCoordType[i] = (char)toupper(NodeCoordType[i]);
     if (!strcmp(NodeCoordType, "TWOD_COORDS"))
         CoordType = TWOD_COORDS;
     else if (!strcmp(NodeCoordType, "THREED_COORDS"))
@@ -1093,23 +1018,19 @@ static void Read_NODE_COORD_TYPE()
         eprintf("Unknown NODE_COORD_TYPE: %s", NodeCoordType);
 }
 
-static void Read_TOUR_SECTION(FILE ** File)
+static void Read_TOUR_SECTION(FILE** File)
 {
     Node *First = 0, *Last = 0, *N, *Na;
     int i, k;
 
-    if (!FirstNode)
-        CreateNodes();
+    if (!FirstNode) CreateNodes();
     N = FirstNode;
     do
         N->V = 0;
     while ((N = N->Suc) != FirstNode);
-    if (ProblemType == HPP)
-        Dimension--;
-    if (ProblemType == ATSP)
-        Dimension /= 2;
-    if (!fscanint(*File, &i))
-        i = -1;
+    if (ProblemType == HPP) Dimension--;
+    if (ProblemType == ATSP) Dimension /= 2;
+    if (!fscanint(*File, &i)) i = -1;
     for (k = 0; k <= Dimension && i != -1; k++) {
         if (i <= 0 || i > Dimension)
             eprintf("TOUR_SECTION: Node number out of range: %d", i);
@@ -1128,22 +1049,16 @@ static void Read_TOUR_SECTION(FILE ** File)
 
             Last = N;
         }
-        if (k < Dimension)
-            fscanint(*File, &i);
-        if (k == Dimension - 1)
-            i = First->Id;
+        if (k < Dimension) fscanint(*File, &i);
+        if (k == Dimension - 1) i = First->Id;
     }
     N = FirstNode;
     do
-        if (!N->V)
-            eprintf("TOUR_SECTION: Node is missing: %d", N->Id);
+        if (!N->V) eprintf("TOUR_SECTION: Node is missing: %d", N->Id);
     while ((N = N->Suc) != FirstNode);
-    if (ProblemType == HPP)
-        Dimension++;
-    if (ProblemType == ATSP)
-        Dimension *= 2;
-    if (TraceLevel >= 1)
-        printff("done\n");
+    if (ProblemType == HPP) Dimension++;
+    if (ProblemType == ATSP) Dimension *= 2;
+    if (TraceLevel >= 1) printff("done\n");
 }
 
 static void Read_TYPE()
@@ -1151,10 +1066,9 @@ static void Read_TYPE()
     unsigned int i;
 
     free(Type);
-    if (!(Type = Copy(strtok(0, Delimiters))))
-        eprintf("TYPE: string expected");
+    if (!(Type = Copy(strtok(0, Delimiters)))) eprintf("TYPE: string expected");
     for (i = 0; i < strlen(Type); i++)
-        Type[i] = (char) toupper(Type[i]);
+        Type[i] = (char)toupper(Type[i]);
     if (!strcmp(Type, "TSP"))
         ProblemType = TSP;
     else if (!strcmp(Type, "ATSP"))

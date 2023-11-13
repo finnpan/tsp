@@ -21,7 +21,7 @@ static GainType OrdinalTourCost;
 GainType FindTour()
 {
     GainType Cost;
-    Node *t;
+    Node* t;
     int i;
     double EntryTime = GetTime();
 
@@ -32,10 +32,10 @@ GainType FindTour()
     if (Run == 1 && Dimension == DimensionSaved) {
         OrdinalTourCost = 0;
         for (i = 1; i < Dimension; i++)
-            OrdinalTourCost += C(&NodeSet[i], &NodeSet[i + 1])
-                - NodeSet[i].Pi - NodeSet[i + 1].Pi;
+            OrdinalTourCost += C(&NodeSet[i], &NodeSet[i + 1]) - NodeSet[i].Pi
+                               - NodeSet[i + 1].Pi;
         OrdinalTourCost += C(&NodeSet[Dimension], &NodeSet[1])
-            - NodeSet[Dimension].Pi - NodeSet[1].Pi;
+                           - NodeSet[Dimension].Pi - NodeSet[1].Pi;
         OrdinalTourCost /= Precision;
     }
     BetterCost = PLUS_INFINITY;
@@ -47,10 +47,9 @@ GainType FindTour()
     }
 
     for (Trial = 1; Trial <= MaxTrials; Trial++) {
-        if (GetTime() - EntryTime >= TimeLimit ||
-            GetTime() - StartTime >= TotalTimeLimit) {
-            if (TraceLevel >= 1)
-                printff("*** Time limit exceeded ***\n");
+        if (GetTime() - EntryTime >= TimeLimit
+            || GetTime() - StartTime >= TotalTimeLimit) {
+            if (TraceLevel >= 1) printff("*** Time limit exceeded ***\n");
             Trial--;
             break;
         }
@@ -62,16 +61,17 @@ GainType FindTour()
                 FirstNode = FirstNode->Suc;
         ChooseInitialTour();
         Cost = LinKernighan();
-        if (GetTime() - EntryTime < TimeLimit &&
-            GetTime() - StartTime < TotalTimeLimit) {
+        if (GetTime() - EntryTime < TimeLimit
+            && GetTime() - StartTime < TotalTimeLimit) {
             if (FirstNode->BestSuc) {
                 /* Merge tour with current best tour */
                 t = FirstNode;
-                while ((t = t->Next = t->BestSuc) != FirstNode);
+                while ((t = t->Next = t->BestSuc) != FirstNode)
+                    ;
                 Cost = MergeWithTour();
             }
-            if (Dimension == DimensionSaved && Cost >= OrdinalTourCost &&
-                BetterCost > OrdinalTourCost) {
+            if (Dimension == DimensionSaved && Cost >= OrdinalTourCost
+                && BetterCost > OrdinalTourCost) {
                 /* Merge tour with ordinal tour */
                 for (i = 1; i < Dimension; i++)
                     NodeSet[i].Next = &NodeSet[i + 1];
@@ -85,20 +85,20 @@ GainType FindTour()
                 if (Optimum != MINUS_INFINITY && Optimum != 0)
                     printff(", Gap = %0.4f%%",
                             100.0 * (Cost - Optimum) / Optimum);
-                printff(", Time = %0.2f sec. %s\n",
-                        fabs(GetTime() - EntryTime),
-                        Cost < Optimum ? "<" : Cost == Optimum ? "=" : "");
+                printff(", Time = %0.2f sec. %s\n", fabs(GetTime() - EntryTime),
+                        Cost < Optimum    ? "<"
+                        : Cost == Optimum ? "="
+                                          : "");
             }
             BetterCost = Cost;
             RecordBetterTour();
-            if (StopAtOptimum && BetterCost == Optimum)
-                break;
+            if (StopAtOptimum && BetterCost == Optimum) break;
             AdjustCandidateSet();
             HashInitialize(HTable);
             HashInsert(HTable, Hash, Cost);
         } else if (TraceLevel >= 2)
-            printff("  %d: Cost = " GainFormat ", Time = %0.2f sec.\n",
-                    Trial, Cost, fabs(GetTime() - EntryTime));
+            printff("  %d: Cost = " GainFormat ", Time = %0.2f sec.\n", Trial,
+                    Cost, fabs(GetTime() - EntryTime));
         /* Record backbones if wanted */
         if (Trial <= BackboneTrials && BackboneTrials < MaxTrials) {
             SwapCandidateSets();
@@ -113,9 +113,9 @@ GainType FindTour()
         }
     }
     if (BackboneTrials > 0 && BackboneTrials < MaxTrials) {
-        if (Trial > BackboneTrials ||
-            (Trial == BackboneTrials &&
-             (!StopAtOptimum || BetterCost != Optimum)))
+        if (Trial > BackboneTrials
+            || (Trial == BackboneTrials
+                && (!StopAtOptimum || BetterCost != Optimum)))
             SwapCandidateSets();
         t = FirstNode;
         do {
@@ -134,8 +134,7 @@ GainType FindTour()
         (t->Suc = t->BestSuc)->Pred = t;
         Hash ^= Rand[t->Id] * Rand[t->Suc->Id];
     } while ((t = t->BestSuc) != FirstNode);
-    if (Trial > MaxTrials)
-        Trial = MaxTrials;
+    if (Trial > MaxTrials) Trial = MaxTrials;
     ResetCandidateSet();
     return BetterCost;
 }
@@ -146,9 +145,9 @@ GainType FindTour()
 
 static void SwapCandidateSets()
 {
-    Node *t = FirstNode;
+    Node* t = FirstNode;
     do {
-        Candidate *Temp = t->CandidateSet;
+        Candidate* Temp = t->CandidateSet;
         t->CandidateSet = t->BackboneCandidateSet;
         t->BackboneCandidateSet = Temp;
     } while ((t = t->Suc) != FirstNode);

@@ -1,11 +1,15 @@
 #include "LKH.h"
 #include "Sequence.h"
 
-/*      
+/*
  * The FreeStructures function frees all allocated structures.
  */
 
-#define Free(s) { free(s); s = 0; }
+#define Free(s)                                                                \
+    {                                                                          \
+        free(s);                                                               \
+        s = 0;                                                                 \
+    }
 
 void FreeStructures()
 {
@@ -14,7 +18,7 @@ void FreeStructures()
     if (NodeSet) {
         int i;
         for (i = 1; i <= Dimension; i++) {
-            Node *N = &NodeSet[i];
+            Node* N = &NodeSet[i];
             N->C = 0;
         }
         Free(NodeSet);
@@ -45,7 +49,7 @@ void FreeStructures()
     Free(G);
 }
 
-/*      
+/*
    The FreeSegments function frees the segments.
  */
 
@@ -56,8 +60,7 @@ void FreeSegments()
         do {
             SPrev = S->Pred;
             Free(S);
-        }
-        while ((S = SPrev) != FirstSegment);
+        } while ((S = SPrev) != FirstSegment);
         FirstSegment = 0;
     }
     if (FirstSSegment) {
@@ -65,24 +68,21 @@ void FreeSegments()
         do {
             SSPrev = SS->Pred;
             Free(SS);
-        }
-        while ((SS = SSPrev) != FirstSSegment);
+        } while ((SS = SSPrev) != FirstSSegment);
         FirstSSegment = 0;
     }
 }
 
-/*      
+/*
  * The FreeCandidateSets function frees the candidate sets.
  */
 
 void FreeCandidateSets()
 {
-    Node *N = FirstNode;
-    if (!N)
-        return;
+    Node* N = FirstNode;
+    if (!N) return;
     do {
         Free(N->CandidateSet);
         Free(N->BackboneCandidateSet);
-    }
-    while ((N = N->Suc) != FirstNode);
+    } while ((N = N->Suc) != FirstNode);
 }

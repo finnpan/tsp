@@ -2,17 +2,17 @@
 #include "LKH.h"
 
 /*
- * The Flip_SL function performs a 2-opt move. Edges (t1,t2) and (t3,t4) 
- * are exchanged with edges (t2,t3) and (t4,t1). Node t4 is one of 
+ * The Flip_SL function performs a 2-opt move. Edges (t1,t2) and (t3,t4)
+ * are exchanged with edges (t2,t3) and (t4,t1). Node t4 is one of
  * t3's two neighbors on the tour; which one is uniquely determined
  * by the orientation of (t1,t2).
  *
- * The function is only used if the two-level tree representation is used 
- * for a tour; if the doubly linked list representation is used, the function 
+ * The function is only used if the two-level tree representation is used
+ * for a tour; if the doubly linked list representation is used, the function
  * Flip is used instead.
  *
  * The worst-case time cost of a 2-op move is O(n) when the doubly linked
- * list representation is used. A worst-case cost of O(sqrt(n)) per 2-opt 
+ * list representation is used. A worst-case cost of O(sqrt(n)) per 2-opt
  * move may be achieved using the two-level tree representation.
  *
  * The idea is to divide the tour into roughly sqrt(n) segments. Each segment
@@ -22,8 +22,8 @@
  * that represents its position in the list, two pointers First and Last that
  * references the first and last node of the segment, respectively, and a bit,
  * Reversed, that is used to indicate whether the segment should be traversed
- * in forward or backward direction. Just switching this bit reverses the 
- * orientation of a whole segment. 
+ * in forward or backward direction. Just switching this bit reverses the
+ * orientation of a whole segment.
  *
  * The implementation of Flip_SL closely follows the suggestions given in
  *
@@ -37,11 +37,11 @@
  * Finally, the hash value corresponding to the tour is updated.
  */
 
-static void SplitSegment(Node * t1, Node * t2);
+static void SplitSegment(Node* t1, Node* t2);
 
 #define SPLIT_CUTOFF 0.75
 
-void Flip_SL(Node * t1, Node * t2, Node * t3)
+void Flip_SL(Node* t1, Node* t2, Node* t3)
 {
     Node *t4, *a, *b, *c, *d;
     Segment *P1, *P2, *P3, *P4, *Q1, *Q2;
@@ -49,8 +49,7 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
     int i, Temp;
 
     assert(t1->Pred == t2 || t1->Suc == t2);
-    if (t3 == t2->Pred || t3 == t2->Suc)
-        return;
+    if (t3 == t2->Pred || t3 == t2->Suc) return;
     if (Groups == 1) {
         Flip(t1, t2, t3);
         return;
@@ -72,10 +71,9 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
             P3 = t3->Parent;
             P4 = t4->Parent;
         }
-    } else if ((P1 == P3
-             && abs(t3->Rank - t1->Rank) > SPLIT_CUTOFF * GroupSize)
-            || (P2 == P4
-                && abs(t4->Rank - t2->Rank) > SPLIT_CUTOFF * GroupSize)) {
+    } else if ((P1 == P3 && abs(t3->Rank - t1->Rank) > SPLIT_CUTOFF * GroupSize)
+               || (P2 == P4
+                   && abs(t4->Rank - t2->Rank) > SPLIT_CUTOFF * GroupSize)) {
         if (P1 == P2) {
             SplitSegment(t1, t2);
             P1 = t1->Parent;
@@ -94,7 +92,7 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
     /* Check if it is possible to flip locally within a segment */
     b = 0;
     if (P1 == P3) {
-        /* Either the t1 --> t3 path or the t2 --> t4 path lies 
+        /* Either the t1 --> t3 path or the t2 --> t4 path lies
            within one segment */
         if (t1->Rank < t3->Rank) {
             if (P1 == P2 && P1 == P4 && t2->Rank > t1->Rank) {
@@ -194,8 +192,7 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
             P4 = Q1;
         }
         /* Find the sequence with the smallest number of segments */
-        if ((i = P2->Rank - P3->Rank) < 0)
-            i += Groups;
+        if ((i = P2->Rank - P3->Rank) < 0) i += Groups;
         if (2 * i > Groups) {
             a = t3;
             t3 = t2;
@@ -212,7 +209,7 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
         }
         Ct2t3 = C(t2, t3);
         Ct4t1 = C(t4, t1);
-        /* Reverse the sequence of segments (P3 --> P1). 
+        /* Reverse the sequence of segments (P3 --> P1).
            Mirrors the corresponding code in the Flip function */
         i = P1->Rank;
         P1->Suc = 0;
@@ -262,16 +259,15 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
     SwapStack[Swaps].t3 = t3;
     SwapStack[Swaps].t4 = t4;
     Swaps++;
-    Hash ^= (Rand[t1->Id] * Rand[t2->Id]) ^
-        (Rand[t3->Id] * Rand[t4->Id]) ^
-        (Rand[t2->Id] * Rand[t3->Id]) ^ (Rand[t4->Id] * Rand[t1->Id]);
+    Hash ^= (Rand[t1->Id] * Rand[t2->Id]) ^ (Rand[t3->Id] * Rand[t4->Id])
+            ^ (Rand[t2->Id] * Rand[t3->Id]) ^ (Rand[t4->Id] * Rand[t1->Id]);
 }
 
 /*
-   The SplitSegment function is called by the Flip_SL function to split 
-   a segment. Calling SplitSegment(t1,t2), where t1 and t2 are neighbors 
-   in the same segment, causes the segment to be split between t1 and t2. 
-   The smaller half is merged with its neighbouring segment, thus keeping 
+   The SplitSegment function is called by the Flip_SL function to split
+   a segment. Calling SplitSegment(t1,t2), where t1 and t2 are neighbors
+   in the same segment, causes the segment to be split between t1 and t2.
+   The smaller half is merged with its neighbouring segment, thus keeping
    the number of segments fixed.
 
    The implementation of SplitSegment closely follows the suggestions given in
@@ -281,7 +277,7 @@ void Flip_SL(Node * t1, Node * t2, Node * t3)
         J. Algorithms, 16, 432-479 (1995).
  */
 
-void SplitSegment(Node * t1, Node * t2)
+void SplitSegment(Node* t1, Node* t2)
 {
     Segment *P = t1->Parent, *Q;
     Node *t, *u;

@@ -5,23 +5,23 @@
  * This file contains the functions FindPermutation and FeasibleKOptMove.
  */
 
-/*  
- * The FindPermutation function finds the permutation p[1:2k] corresponding 
+/*
+ * The FindPermutation function finds the permutation p[1:2k] corresponding
  * to the sequence in which the nodes t[1:2k] occur on the tour.
- *   
- * The nodes are sorted using qsort. The BETWEEN function is used 
+ *
+ * The nodes are sorted using qsort. The BETWEEN function is used
  * as comparator.
- *   
+ *
  * Postcondition:
- *   
+ *
  *     BETWEEN(t[p[i-1]], t[p[i]], t[p[i+1]]) for i = 2, ..., 2k-1
  */
 
-static Node *tp1;
+static Node* tp1;
 
-static int compare(const void *pa, const void *pb)
+static int compare(const void* pa, const void* pb)
 {
-    return BETWEEN(tp1, t[*(int *) pa], t[*(int *) pb]) ? -1 : 1;
+    return BETWEEN(tp1, t[*(int*)pa], t[*(int*)pb]) ? -1 : 1;
 }
 
 void FindPermutation(int k)
@@ -40,12 +40,12 @@ void FindPermutation(int k)
         q[p[i]] = i;
 }
 
-/*  
+/*
  * The FeasibleKOptMove function tests whether the move given by
  * t[1..2k] and incl[1..2k] represents a feasible k-opt move,
  * i.e., making the move on the current tour will result in a tour.
- *   
- * In that case, 1 is returned. Otherwise, 0 is returned. 
+ *
+ * In that case, 1 is returned. Otherwise, 0 is returned.
  */
 
 int FeasibleKOptMove(int k)
@@ -53,14 +53,15 @@ int FeasibleKOptMove(int k)
     int Count, i;
 
     FindPermutation(k);
-    for (Count = 1, i = 2 * k; (i = q[incl[p[i]]] ^ 1); Count++);
+    for (Count = 1, i = 2 * k; (i = q[incl[p[i]]] ^ 1); Count++)
+        ;
     return Count == k;
 }
 
 /*
- * The Cycles function returns the number of cycles that would appear if 
- * the move given by t[1..2k] and incl[1..2k] was made. 
- * In addition, cycle[i] is assigned the number of the cycle that node t[i] 
+ * The Cycles function returns the number of cycles that would appear if
+ * the move given by t[1..2k] and incl[1..2k] was made.
+ * In addition, cycle[i] is assigned the number of the cycle that node t[i]
  * is a part of (an integer from 1 to Cycles).
  */
 
@@ -78,10 +79,8 @@ int Cycles(int k)
                 cycle[p[j]] = Count;
                 j = q[incl[p[j]]];
                 cycle[p[j]] = Count;
-                if ((j ^= 1) > 2 * k)
-                    j = 1;
-            }
-            while (j != i);
+                if ((j ^= 1) > 2 * k) j = 1;
+            } while (j != i);
         }
     }
     return Count;
@@ -92,17 +91,17 @@ int Cycles(int k)
  * has been added in the submove under construction.
  */
 
-int Added(const Node * ta, const Node * tb)
+int Added(const Node* ta, const Node* tb)
 {
     return ta->Added1 == tb || ta->Added2 == tb;
 }
 
-/* 
- * The Deleted function is used to test if an edge, (ta,tb), 
+/*
+ * The Deleted function is used to test if an edge, (ta,tb),
  * of the tour has been deleted in the submove under construction.
  */
 
-int Deleted(const Node * ta, const Node * tb)
+int Deleted(const Node* ta, const Node* tb)
 {
     return ta->Deleted1 == tb || ta->Deleted2 == tb;
 }
@@ -112,7 +111,7 @@ int Deleted(const Node * ta, const Node * tb)
  * in the submove under construction.
  */
 
-void MarkAdded(Node * ta, Node * tb)
+void MarkAdded(Node* ta, Node* tb)
 {
     if (!ta->Added1)
         ta->Added1 = tb;
@@ -129,7 +128,7 @@ void MarkAdded(Node * ta, Node * tb)
  * in the submove under construction.
  */
 
-void MarkDeleted(Node * ta, Node * tb)
+void MarkDeleted(Node* ta, Node* tb)
 {
     if (!ta->Deleted1)
         ta->Deleted1 = tb;
@@ -146,7 +145,7 @@ void MarkDeleted(Node * ta, Node * tb)
  * added.
  */
 
-void UnmarkAdded(Node * ta, Node * tb)
+void UnmarkAdded(Node* ta, Node* tb)
 {
     if (ta->Added1 == tb)
         ta->Added1 = 0;
@@ -163,7 +162,7 @@ void UnmarkAdded(Node * ta, Node * tb)
  * deleted.
  */
 
-void UnmarkDeleted(Node * ta, Node * tb)
+void UnmarkDeleted(Node* ta, Node* tb)
 {
     if (ta->Deleted1 == tb)
         ta->Deleted1 = 0;

@@ -2,31 +2,31 @@
 #include "Segment.h"
 
 /*
- * The MakeKOptMove function makes a K-opt move (K >= 2) using sorting by 
+ * The MakeKOptMove function makes a K-opt move (K >= 2) using sorting by
  * reversals.
- *   
- * Let t[1:2K] be the sequence of nodes used in the K-opt move.  
- * 
- *    {(t[2i-1],t[2i]) | 1 <= i <= K} is the set of edges to be excluded 
- *                                    from the tour. 
- 
- *    {(t[2i],t[incl[2i]]) | 1 <= i <= K} is the set of edges to be 
+ *
+ * Let t[1:2K] be the sequence of nodes used in the K-opt move.
+ *
+ *    {(t[2i-1],t[2i]) | 1 <= i <= K} is the set of edges to be excluded
+ *                                    from the tour.
+
+ *    {(t[2i],t[incl[2i]]) | 1 <= i <= K} is the set of edges to be
  *                                        included in the tour.
- *   
- * And let p[1:2K] be a permutation corresponding to the sequence in which 
+ *
+ * And let p[1:2K] be a permutation corresponding to the sequence in which
  * the nodes occur on the tour.
- *   
- * Then the move corresponds to sorting p by reversals. 
- *   
- * MakeKOptMove finds the minimum number of reversals and makes the 
+ *
+ * Then the move corresponds to sorting p by reversals.
+ *
+ * MakeKOptMove finds the minimum number of reversals and makes the
  * corresponding series of 2-opt moves (swaps).
- *   
- * The implementation is based upon the algorithm for sorting signed 
+ *
+ * The implementation is based upon the algorithm for sorting signed
  * permutations by reversals given in
- *   
+ *
  *    A, Bergeron,
  *    "A Very Elementary Presentation of the Hannenhalli-Pevzner Theory",
- *    Lecture Notes in Computer Science, 2089, 106-117 (2001). 
+ *    Lecture Notes in Computer Science, 2089, 106-117 (2001).
  */
 
 static void Reverse(int i, int j);
@@ -37,14 +37,14 @@ void MakeKOptMove(int K)
     int i, j, Best_i = 0, Best_j = 0, BestScore, s;
 
     FindPermutation(K);
-  FindNextReversal:
+FindNextReversal:
     /* Find the oriented reversal that has maximal score */
     BestScore = -1;
     for (i = 1; i <= 2 * K - 2; i++) {
         j = q[incl[p[i]]];
-        if (j >= i + 2 && (i & 1) == (j & 1) &&
-            (s = i & 1 ? Score(i + 1, j, K) :
-             Score(i, j - 1, K)) > BestScore) {
+        if (j >= i + 2 && (i & 1) == (j & 1)
+            && (s = i & 1 ? Score(i + 1, j, K) : Score(i, j - 1, K))
+                   > BestScore) {
             BestScore = s;
             Best_i = i;
             Best_j = j;
@@ -89,7 +89,7 @@ static void Reverse(int i, int j)
 }
 
 /*
- * The Score function computes the score of a reversal. The score is the 
+ * The Score function computes the score of a reversal. The score is the
  * number of oriented pairs in the resulting reversal.
  */
 
@@ -100,8 +100,7 @@ static int Score(int Left, int Right, int K)
     Reverse(Left, Right);
     for (i = 1; i <= 2 * K - 2; i++) {
         j = q[incl[p[i]]];
-        if (j >= i + 2 && (i & 1) == (j & 1))
-            Count++;
+        if (j >= i + 2 && (i & 1) == (j & 1)) Count++;
     }
     Reverse(Left, Right);
     return Count;

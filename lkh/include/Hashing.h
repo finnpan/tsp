@@ -2,12 +2,12 @@
 #define _HASHING_H
 
 /*
- * This header specifies the interface for hashing.   
+ * This header specifies the interface for hashing.
  */
 
 #include "GainType.h"
 
-#define HashTableSize 65521     /* Largest prime less than USHRT_MAX */
+#define HashTableSize 65521 /* Largest prime less than USHRT_MAX */
 #define MaxLoadFactor 0.75
 
 typedef struct HashTableEntry {
@@ -20,10 +20,10 @@ typedef struct HashTable {
     int Count; /* Number of occupied entries */
 } HashTable;
 
-void HashInitialize(HashTable * T);
+void HashInitialize(HashTable* T);
 
-void HashInsert(HashTable * T, unsigned Hash, GainType Cost);
+void HashInsert(HashTable* T, unsigned Hash, GainType Cost);
 
-int HashSearch(HashTable * T, unsigned Hash, GainType Cost);
+int HashSearch(HashTable* T, unsigned Hash, GainType Cost);
 
 #endif

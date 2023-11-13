@@ -39,17 +39,17 @@ public:
     class ParentNode {
     public:
         bool reverse = false;
-        int  size = 0;
-        int  id = 0;
+        int size = 0;
+        int id = 0;
         ParentNode* prev = nullptr;
         ParentNode* next = nullptr;
         ChildNode* begin = nullptr;
         ChildNode* end = nullptr;
 
-        ChildNode* ForwardEndNode() const { return reverse? begin : end; }
-        ChildNode* ForwardBeginNode() const { return reverse? end : begin; }
-        ChildNode* BackwardBeginNode() const { return reverse? begin : end; }
-        ChildNode* BackwardEndNode() const { return reverse? end : begin; }
+        ChildNode* ForwardEndNode() const { return reverse ? begin : end; }
+        ChildNode* ForwardBeginNode() const { return reverse ? end : begin; }
+        ChildNode* BackwardBeginNode() const { return reverse ? begin : end; }
+        ChildNode* BackwardEndNode() const { return reverse ? end : begin; }
     };
 
     class ChildNode {
@@ -64,149 +64,192 @@ public:
             const ChildNode* _node;
             int _idx;
             const int _len;
+
         public:
-            Iter (const ChildNode* node, int idx, int len) :
-                _node(node), _idx(idx), _len(len) {}
-            int operator* () { return _node->city; }
-            int operator- (const Iter& oth) const { return _idx - oth._idx; }
-            Iter& operator++ () {
-                if (_idx < _len - 1) { _node = _node->next; ++_idx; }
+            Iter(const ChildNode* node, int idx, int len)
+                : _node(node), _idx(idx), _len(len)
+            {
+            }
+            int operator*() { return _node->city; }
+            int operator-(const Iter& oth) const { return _idx - oth._idx; }
+            Iter& operator++()
+            {
+                if (_idx < _len - 1) {
+                    _node = _node->next;
+                    ++_idx;
+                }
                 return *this;
             }
-            Iter operator++ (int) { Iter cpy = *this; ++(*this); return cpy; }
-            Iter& operator-- () {
-                if (_idx > 0) { _node = _node->prev; --_idx; }
+            Iter operator++(int)
+            {
+                Iter cpy = *this;
+                ++(*this);
+                return cpy;
+            }
+            Iter& operator--()
+            {
+                if (_idx > 0) {
+                    _node = _node->prev;
+                    --_idx;
+                }
                 return *this;
             }
-            Iter operator-- (int) { Iter cpy = *this; --(*this); return cpy; }
+            Iter operator--(int)
+            {
+                Iter cpy = *this;
+                --(*this);
+                return cpy;
+            }
         };
     };
 
 private:
     // store the double linked list in an array for fast access
     ParentNode* _parentNodes = nullptr;
-    ChildNode*  _childNodes = nullptr;
+    ChildNode* _childNodes = nullptr;
     int _segNum = 0;
     int _cityNum = 0;
     int _originCity = 0;
     int _nominalSegLen = 0;
 
 public:
-    TwoLevelTree (int cityNum, int originCity = 0);
-    ~TwoLevelTree ();
-    TwoLevelTree (const TwoLevelTree& other) noexcept { *this = other; }
-    TwoLevelTree& operator= (const TwoLevelTree& other) noexcept;
-    TwoLevelTree (TwoLevelTree&& other) { *this = std::move(other); }
-    TwoLevelTree& operator= (TwoLevelTree&& other);
+    TwoLevelTree(int cityNum, int originCity = 0);
+    ~TwoLevelTree();
+    TwoLevelTree(const TwoLevelTree& other) noexcept { *this = other; }
+    TwoLevelTree& operator=(const TwoLevelTree& other) noexcept;
+    TwoLevelTree(TwoLevelTree&& other) { *this = std::move(other); }
+    TwoLevelTree& operator=(TwoLevelTree&& other);
 
-    int GetNext (int current) const { return GetNext(GetNode(current))->city; }
-    int GetPrev (int current) const { return GetPrev(GetNode(current))->city; }
+    int GetNext(int current) const { return GetNext(GetNode(current))->city; }
+    int GetPrev(int current) const { return GetPrev(GetNode(current))->city; }
 
-    bool Between (int a, int b, int c) const {
+    bool Between(int a, int b, int c) const
+    {
         return Between(GetNode(a), GetNode(b), GetNode(c));
     }
 
-    void Flip (int a, int b, int c, int d) {
+    void Flip(int a, int b, int c, int d)
+    {
         Flip(GetNode(a), GetNode(b), GetNode(c), GetNode(d));
     }
 
-    void DoubleBridgeMove (int a, int b, int c, int d) {
+    void DoubleBridgeMove(int a, int b, int c, int d)
+    {
         DoubleBridgeMove(GetNode(a), GetNode(b), GetNode(c), GetNode(d));
     }
 
-    int ParentNum () const { return _segNum; }
-    int ChildNum () const { return _cityNum; }
+    int ParentNum() const { return _segNum; }
+    int ChildNum() const { return _cityNum; }
     int OriginCity() const { return _originCity; }
 
-    bool IsCityValid (int city) const {
+    bool IsCityValid(int city) const
+    {
         return city >= _originCity && city < _originCity + _cityNum;
     }
 
     template <typename iterator>
-    void SetTour (iterator begin, iterator last);
+    void SetTour(iterator begin, iterator last);
 
 private:
-    bool Between (const ChildNode* a, const ChildNode* b,
-                  const ChildNode* c) const;
+    bool Between(const ChildNode* a, const ChildNode* b,
+                 const ChildNode* c) const;
 
-    void Flip (ChildNode* a, ChildNode* b, ChildNode* c, ChildNode* d);
+    void Flip(ChildNode* a, ChildNode* b, ChildNode* c, ChildNode* d);
 
-    void DoubleBridgeMove (ChildNode* a, ChildNode* b,
-                           ChildNode* c, ChildNode* d);
+    void DoubleBridgeMove(ChildNode* a, ChildNode* b, ChildNode* c,
+                          ChildNode* d);
 
-    void Reverse (ChildNode* a, ChildNode* b);
+    void Reverse(ChildNode* a, ChildNode* b);
 
-    void ReverseSegment (ChildNode* a, ChildNode*b);
+    void ReverseSegment(ChildNode* a, ChildNode* b);
 
-    void ReverseCompleteSegment (ChildNode* a, ChildNode* b);
+    void ReverseCompleteSegment(ChildNode* a, ChildNode* b);
 
-    void ReversePartialSegment (ChildNode* a, ChildNode* b);
+    void ReversePartialSegment(ChildNode* a, ChildNode* b);
 
-    void SplitAndMerge (ChildNode* s, bool includeSelf, Direction dir);
+    void SplitAndMerge(ChildNode* s, bool includeSelf, Direction dir);
 
-    const ChildNode* GetNode (int city) const {
+    const ChildNode* GetNode(int city) const
+    {
         assert(IsCityValid(city));
-        return &_childNodes[city-_originCity];
+        return &_childNodes[city - _originCity];
     }
 
-    ChildNode* GetNode (int city) {
+    ChildNode* GetNode(int city)
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ChildNode*>(ct->GetNode(city));
     }
 
-    const ParentNode* GetParentNode (int city) const {
+    const ParentNode* GetParentNode(int city) const
+    {
         return GetNode(city)->parent;
     }
 
-    ParentNode* GetParentNode (int city) {
+    ParentNode* GetParentNode(int city)
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ParentNode*>(ct->GetParentNode(city));
     }
 
-    const ParentNode* HeadParentNode () const { return &_parentNodes[0]; }
+    const ParentNode* HeadParentNode() const { return &_parentNodes[0]; }
 
-    ParentNode* HeadParentNode () {
+    ParentNode* HeadParentNode()
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ParentNode*>(ct->HeadParentNode());
     }
 
-    const ParentNode*
-    TailParentNode () const { return &_parentNodes[_segNum-1]; }
+    const ParentNode* TailParentNode() const
+    {
+        return &_parentNodes[_segNum - 1];
+    }
 
-    ParentNode* TailParentNode () {
+    ParentNode* TailParentNode()
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ParentNode*>(ct->TailParentNode());
     }
 
-    const ChildNode* OriginCityNode () const { return GetNode(_originCity); }
+    const ChildNode* OriginCityNode() const { return GetNode(_originCity); }
 
-    ChildNode* OriginCityNode () {
+    ChildNode* OriginCityNode()
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ChildNode*>(ct->OriginCityNode());
     }
 
-    const ChildNode* GetNext (const ChildNode* current) const {
-        if (current->parent->reverse) { return current->prev; }
+    const ChildNode* GetNext(const ChildNode* current) const
+    {
+        if (current->parent->reverse) {
+            return current->prev;
+        }
         return current->next;
     }
 
-    ChildNode* GetNext (const ChildNode* current) {
+    ChildNode* GetNext(const ChildNode* current)
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ChildNode*>(ct->GetNext(current));
     }
 
-    const ChildNode* GetPrev (const ChildNode* current) const {
-        if (current->parent->reverse) { return current->next; }
+    const ChildNode* GetPrev(const ChildNode* current) const
+    {
+        if (current->parent->reverse) {
+            return current->next;
+        }
         return current->prev;
     }
 
-    ChildNode* GetPrev (const ChildNode* current) {
+    ChildNode* GetPrev(const ChildNode* current)
+    {
         auto* ct = const_cast<const TwoLevelTree*>(this);
         return const_cast<ChildNode*>(ct->GetPrev(current));
     }
 
-    bool IsApproximatelyShorter (ChildNode* a, ChildNode* b,
-                                 ChildNode* c, ChildNode* d) const {
+    bool IsApproximatelyShorter(ChildNode* a, ChildNode* b, ChildNode* c,
+                                ChildNode* d) const
+    {
         int abSegNum = CountSegmants(a, b);
         int cdSegNum = CountSegmants(c, d);
         // consider number of segments firstly due to imbalance
@@ -221,7 +264,8 @@ private:
     }
 
     // forward path a --> b
-    int CountSegmants (ChildNode* a, ChildNode* b) const {
+    int CountSegmants(ChildNode* a, ChildNode* b) const
+    {
         int n = ParentNum();
         auto apid = a->parent->id, bpid = b->parent->id;
         // how many segments are involved in the forward path a --> b
@@ -237,8 +281,8 @@ private:
         return bpid + n - apid + 1;
     }
 
-    bool IsPathInSingleSegment (const ChildNode* a,
-                                const ChildNode* b) const {
+    bool IsPathInSingleSegment(const ChildNode* a, const ChildNode* b) const
+    {
         if (a->parent == b->parent) {
             if (a->parent->reverse) {
                 return a->id > b->id;
@@ -248,20 +292,29 @@ private:
         return false;
     }
 
-    void ConnectArcForward (ChildNode* p, ChildNode* q) const {
-        if (p->parent->reverse) { p->prev = q; }
-        else { p->next = q; }
-        if (q->parent->reverse) { q->next = p; }
-        else { q->prev = p; }
+    void ConnectArcForward(ChildNode* p, ChildNode* q) const
+    {
+        if (p->parent->reverse) {
+            p->prev = q;
+        } else {
+            p->next = q;
+        }
+        if (q->parent->reverse) {
+            q->next = p;
+        } else {
+            q->prev = p;
+        }
     }
 
-    void ConnectForward (ChildNode* p, ChildNode* q) const {
+    void ConnectForward(ChildNode* p, ChildNode* q) const
+    {
         ConnectArcForward(p, q);
         p->parent->next = q->parent;
         q->parent->prev = p->parent;
     }
 
-    void RelabelId (ChildNode* a, ChildNode* b, int idA) const {
+    void RelabelId(ChildNode* a, ChildNode* b, int idA) const
+    {
         assert(a->parent == b->parent);
         a->id = idA;
         while (a != b) {
@@ -270,7 +323,8 @@ private:
         }
     }
 
-    void SplitAndMerge_0 (ChildNode* a) {
+    void SplitAndMerge_0(ChildNode* a)
+    {
         if (a == a->parent->ForwardBeginNode()) {
             return;
         }
@@ -283,7 +337,8 @@ private:
         }
     }
 
-    void SplitAndMerge_1 (ChildNode* a, ChildNode* b) {
+    void SplitAndMerge_1(ChildNode* a, ChildNode* b)
+    {
         if (b == b->parent->BackwardBeginNode()) {
             return;
         }
@@ -302,7 +357,8 @@ private:
         }
     }
 
-    void ReverseSeg_0 (ParentNode* p, ParentNode* q) const {
+    void ReverseSeg_0(ParentNode* p, ParentNode* q) const
+    {
         // p -> q forward
         p->next = q;
         q->prev = p;
@@ -314,7 +370,7 @@ private:
 };
 
 template <typename iterator>
-void TwoLevelTree::SetTour (iterator begin, iterator last)
+void TwoLevelTree::SetTour(iterator begin, iterator last)
 {
     const int tourLen = last - begin + 1;
     (void)tourLen;
@@ -331,10 +387,10 @@ void TwoLevelTree::SetTour (iterator begin, iterator last)
         // first build the parent for this segment
         parent = &_parentNodes[segId];
         parent->id = segId;
-        parent->prev = (segId > 0)?
-                &_parentNodes[segId - 1] : TailParentNode();
-        parent->next = (segId + 1 < segNum)?
-                &_parentNodes[segId + 1] : HeadParentNode();
+        parent->prev =
+            (segId > 0) ? &_parentNodes[segId - 1] : TailParentNode();
+        parent->next =
+            (segId + 1 < segNum) ? &_parentNodes[segId + 1] : HeadParentNode();
         parent->reverse = false;
         // this segment range in the given order tour (the end excluded)
         s = segId * segLen;
@@ -358,13 +414,13 @@ void TwoLevelTree::SetTour (iterator begin, iterator last)
                 node->prev = GetNode(*last);
             } else {
                 node->prev = GetNode(*(--iter));
-                ++iter; // restore
+                ++iter;  // restore
             }
-            if (c+1 == _cityNum) {
+            if (c + 1 == _cityNum) {
                 node->next = GetNode(*begin);
             } else {
                 node->next = GetNode(*(++iter));
-                --iter; // restore
+                --iter;  // restore
             }
             node->id = c - s;
             ++c;
@@ -374,7 +430,7 @@ void TwoLevelTree::SetTour (iterator begin, iterator last)
             parent->end = GetNode(*last);
         } else {
             parent->end = GetNode(*(--iter));
-            ++iter; // restore
+            ++iter;  // restore
         }
     }
 }

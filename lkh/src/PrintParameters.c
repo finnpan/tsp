@@ -1,8 +1,8 @@
 #include "LKH.h"
 
 /*
- * The PrintParameters function prints the problem parameters to 
- * standard output. 
+ * The PrintParameters function prints the problem parameters to
+ * standard output.
 */
 
 void PrintParameters()
@@ -14,8 +14,7 @@ void PrintParameters()
         printff("EXCESS = %g\n", Excess);
     else
         printff("# EXCESS =\n");
-    printff("EXTRA_CANDIDATES = %d %s\n",
-            ExtraCandidates,
+    printff("EXTRA_CANDIDATES = %d %s\n", ExtraCandidates,
             ExtraCandidateSetSymmetric ? "SYMMETRIC" : "");
     printff("GAIN23 = %s\n", Gain23Used ? "YES" : "NO");
     printff("GAIN_CRITERION = %s\n", GainCriterionUsed ? "YES" : "NO");
@@ -30,8 +29,8 @@ void PrintParameters()
         printff("# MAX_BREADTH =\n");
     else
         printff("MAX_BREADTH = %d\n", MaxBreadth);
-    printff("MAX_CANDIDATES = %d %s\n",
-            MaxCandidates, CandidateSetSymmetric ? "SYMMETRIC" : "");
+    printff("MAX_CANDIDATES = %d %s\n", MaxCandidates,
+            CandidateSetSymmetric ? "SYMMETRIC" : "");
     if (MaxSwaps >= 0)
         printff("MAX_SWAPS = %d\n", MaxSwaps);
     else
@@ -41,21 +40,22 @@ void PrintParameters()
     else
         printff("# MAX_TRIALS =\n");
     printff("MOVE_TYPE = %d\n", MoveType);
-    printff("%sNONSEQUENTIAL_MOVE_TYPE = %d\n",
-            PatchingA > 1 ? "" : "# ", NonsequentialMoveType);
+    printff("%sNONSEQUENTIAL_MOVE_TYPE = %d\n", PatchingA > 1 ? "" : "# ",
+            NonsequentialMoveType);
     if (Optimum == MINUS_INFINITY)
         printff("# OPTIMUM =\n");
     else
         printff("OPTIMUM = " GainFormat "\n", Optimum);
     printff("PATCHING_A = %d %s\n", PatchingA,
-            PatchingARestricted ? "RESTRICTED" :
-            PatchingAExtended ? "EXTENDED" : "");
+            PatchingARestricted ? "RESTRICTED"
+            : PatchingAExtended ? "EXTENDED"
+                                : "");
     printff("PATCHING_C = %d %s\n", PatchingC,
-            PatchingCRestricted ? "RESTRICTED" :
-            PatchingCExtended ? "EXTENDED" : "");
+            PatchingCRestricted ? "RESTRICTED"
+            : PatchingCExtended ? "EXTENDED"
+                                : "");
     printff("PRECISION = %d\n", Precision);
-    printff("%sPROBLEM_FILE = %s\n",
-            ProblemFileName ? "" : "# ",
+    printff("%sPROBLEM_FILE = %s\n", ProblemFileName ? "" : "# ",
             ProblemFileName ? ProblemFileName : "");
     printff("RESTRICTED_SEARCH = %s\n", RestrictedSearch ? "YES" : "NO");
     printff("RUNS = %d\n", Runs);
@@ -64,8 +64,7 @@ void PrintParameters()
     printff("SUBGRADIENT = %s\n", Subgradient ? "YES" : "NO");
     printff("SUBSEQUENT_MOVE_TYPE = %d\n",
             SubsequentMoveType == 0 ? MoveType : SubsequentMoveType);
-    printff("SUBSEQUENT_PATCHING = %s\n",
-            SubsequentPatching ? "YES" : "NO");
+    printff("SUBSEQUENT_PATCHING = %s\n", SubsequentPatching ? "YES" : "NO");
     if (TimeLimit == DBL_MAX)
         printff("# TIME_LIMIT =\n");
     else

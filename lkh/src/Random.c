@@ -3,16 +3,16 @@
  * identical sequences of random integers for any platform with
  * at least 32-bit integers.
  *
- * A version of this generator is described in J. Bentley's column, 
- * "The Software Exploratorium", Unix Review 1991. It is based on 
- * Algorithm A in D. E. Knuth, The Art of Computer Programming, 
- * Vol 2, Section 3.2.2, pp. 172.  
- *  
+ * A version of this generator is described in J. Bentley's column,
+ * "The Software Exploratorium", Unix Review 1991. It is based on
+ * Algorithm A in D. E. Knuth, The Art of Computer Programming,
+ * Vol 2, Section 3.2.2, pp. 172.
+ *
  * The Random function returns a pseudo-random integer in the range
  * 0...INT_MAX-1.
- *   
+ *
  * The SRandom function uses the given seed for a new sequence of
- * pseudo-random numbers.  
+ * pseudo-random numbers.
  */
 
 unsigned Random(void);
@@ -44,14 +44,10 @@ unsigned Random()
 {
     int t;
 
-    if (!initialized)
-        SRandom(7913);
-    if (a-- == 0)
-        a = 54;
-    if (b-- == 0)
-        b = 54;
-    if ((t = arr[a] - arr[b]) < 0)
-        t += PRANDMAX;
+    if (!initialized) SRandom(7913);
+    if (a-- == 0) a = 54;
+    if (b-- == 0) b = 54;
+    if ((t = arr[a] - arr[b]) < 0) t += PRANDMAX;
     return (arr[a] = t);
 }
 
@@ -64,8 +60,7 @@ void SRandom(unsigned Seed)
     for (next = i = 1; i < 55; i++) {
         ii = (21 * i) % 55;
         arr[ii] = next;
-        if ((next = last - next) < 0)
-            next += PRANDMAX;
+        if ((next = last - next) < 0) next += PRANDMAX;
         last = arr[ii];
     }
     initialized = 1;

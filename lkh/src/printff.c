@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-/* 
+/*
  * The printff function prints a message and flushes stdout.
  */
 
-void printff(const char *fmt, ...)
+void printff(const char* fmt, ...)
 {
     va_list args;
 

@@ -19,7 +19,7 @@
 
 static GainType PatchCyclesRec(int k, int m, int M, GainType G0);
 static int ShortestCycle(int M, int k);
-static int Cycle(Node * N, int k);
+static int Cycle(Node* N, int k);
 
 static int CurrentCycle, Patchwork = 0, RecLevel = 0;
 #define MaxPatchwork Dimension
@@ -43,30 +43,24 @@ GainType PatchCycles(int k, GainType Gain)
         MakeKOptMove(k);
         return Gain;
     }
-    if (M == 1 || M > PatchingC || k + M > NonsequentialMoveType)
-        return 0;
-    if (RecLevel == 0)
-        Patchwork = 0;
+    if (M == 1 || M > PatchingC || k + M > NonsequentialMoveType) return 0;
+    if (RecLevel == 0) Patchwork = 0;
     CurrentCycle = ShortestCycle(M, k);
     for (i = 0; i < k; i++) {
-        if (cycle[p[2 * i]] != CurrentCycle)
-            continue;
+        if (cycle[p[2 * i]] != CurrentCycle) continue;
         sStart = t[p[2 * i]];
         sStop = t[p[2 * i + 1]];
         for (s1 = sStart; s1 != sStop; s1 = s2) {
             s2 = SUC(s1);
-            if (Fixed(s1, s2))
-                continue;
-            if (++Patchwork > MaxPatchwork)
-                return 0;
+            if (Fixed(s1, s2)) continue;
+            if (++Patchwork > MaxPatchwork) return 0;
             t[2 * k + 1] = s1;
             t[2 * k + 2] = s2;
             MarkDeleted(s1, s2);
             /* Find a set of gainful alternating cycles */
             NewGain = PatchCyclesRec(k, 2, M, Gain + C(s1, s2));
             UnmarkDeleted(s1, s2);
-            if (NewGain > 0)
-                return NewGain;
+            if (NewGain > 0) return NewGain;
         }
     }
     return 0;
@@ -88,30 +82,27 @@ static GainType PatchCyclesRec(int k, int m, int M, GainType G0)
 
     /* Choose (s2,s3) as a candidate edge emanating from s2 */
     for (Ns2 = s2->CandidateSet; (s3 = Ns2->To); Ns2++) {
-        if (s3 == s2->Pred || s3 == s2->Suc || Added(s2, s3) ||
-            (NewCycle = Cycle(s3, k)) == CurrentCycle)
+        if (s3 == s2->Pred || s3 == s2->Suc || Added(s2, s3)
+            || (NewCycle = Cycle(s3, k)) == CurrentCycle)
             continue;
-        if (++Breadth2 > MaxBreadth)
-            break;
+        if (++Breadth2 > MaxBreadth) break;
         MarkAdded(s2, s3);
         t[2 * (k + m) - 1] = s3;
         G1 = G0 - Ns2->Cost;
         /* Choose s4 as one of s3's two neighbors on the tour */
         for (X4 = 1; X4 <= 2; X4++) {
             s4 = X4 == 1 ? s3->Pred : s3->Suc;
-            if (Fixed(s3, s4) || Deleted(s3, s4))
-                continue;
+            if (Fixed(s3, s4) || Deleted(s3, s4)) continue;
             MarkDeleted(s3, s4);
             t[2 * (k + m)] = s4;
             G2 = G1 + C(s3, s4);
             if (M > 2) {
                 if (!cycleSaved) {
-                    cycleSaved = (int *) malloc(2 * k * sizeof(int));
+                    cycleSaved = (int*)malloc(2 * k * sizeof(int));
                     memcpy(cycleSaved, cycle + 1, 2 * k * sizeof(int));
                 }
                 for (i = 1; i <= 2 * k; i++)
-                    if (cycle[i] == NewCycle)
-                        cycle[i] = CurrentCycle;
+                    if (cycle[i] == NewCycle) cycle[i] = CurrentCycle;
                 /* Extend the current alternating path */
                 if ((Gain = PatchCyclesRec(k, m + 1, M - 1, G2)) > 0) {
                     UnmarkAdded(s2, s3);
@@ -119,14 +110,14 @@ static GainType PatchCyclesRec(int k, int m, int M, GainType G0)
                     goto End_PatchCyclesRec;
                 }
                 memcpy(cycle + 1, cycleSaved, 2 * k * sizeof(int));
-                if (PatchingA >= 2 && Patchwork < MaxPatchwork &&
-                    k + M < NonsequentialMoveType &&
-                    !Forbidden(s4, s1) &&
-                    (!PatchingARestricted || IsCandidate(s4, s1))) {
-                    GainType Bound = BestCloseUpGain >= 0 ||
-                        IsCandidate(s4, s1) ? BestCloseUpGain : 0;
-                    if ((!c || G2 - c(s4, s1) > Bound) &&
-                        (CloseUpGain = G2 - C(s4, s1)) > Bound) {
+                if (PatchingA >= 2 && Patchwork < MaxPatchwork
+                    && k + M < NonsequentialMoveType && !Forbidden(s4, s1)
+                    && (!PatchingARestricted || IsCandidate(s4, s1))) {
+                    GainType Bound = BestCloseUpGain >= 0 || IsCandidate(s4, s1)
+                                         ? BestCloseUpGain
+                                         : 0;
+                    if ((!c || G2 - c(s4, s1) > Bound)
+                        && (CloseUpGain = G2 - C(s4, s1)) > Bound) {
                         S3 = s3;
                         S4 = s4;
                         BestCloseUpGain = CloseUpGain;
@@ -151,44 +142,38 @@ static GainType PatchCyclesRec(int k, int m, int M, GainType G0)
         Breadth2 = 0;
         /* Choose (s2,s3) as a candidate edge emanating from s2 */
         for (Ns2 = s2->CandidateSet; (s3 = Ns2->To); Ns2++) {
-            if (s3 == s2->Pred || s3 == s2->Suc || Added(s2, s3))
-                continue;
-            if (++Breadth2 > MaxBreadth)
-                break;
+            if (s3 == s2->Pred || s3 == s2->Suc || Added(s2, s3)) continue;
+            if (++Breadth2 > MaxBreadth) break;
             t[2 * (k + m) - 1] = s3;
             G1 = G0 - Ns2->Cost;
             NewCycle = Cycle(s3, k);
             /* Choose s4 as one of s3's two neighbors on the tour */
             for (X4 = 1; X4 <= 2; X4++) {
                 s4 = X4 == 1 ? s3->Pred : s3->Suc;
-                if (Fixed(s3, s4) || Deleted(s3, s4))
-                    continue;
+                if (Fixed(s3, s4) || Deleted(s3, s4)) continue;
                 t[2 * (k + m)] = s4;
                 G2 = G1 + C(s3, s4);
                 Breadth4 = 0;
                 /* Choose (s4,s5) as a candidate edge emanating from s4 */
                 for (Ns4 = s4->CandidateSet; (s5 = Ns4->To); Ns4++) {
-                    if (s5 == s4->Pred || s5 == s4->Suc || s5 == s1 ||
-                        Added(s4, s5) ||
-                        (NewCycle == CurrentCycle &&
-                         Cycle(s5, k) == CurrentCycle))
+                    if (s5 == s4->Pred || s5 == s4->Suc || s5 == s1
+                        || Added(s4, s5)
+                        || (NewCycle == CurrentCycle
+                            && Cycle(s5, k) == CurrentCycle))
                         continue;
-                    if (++Breadth4 > MaxBreadth)
-                        break;
+                    if (++Breadth4 > MaxBreadth) break;
                     G3 = G2 - Ns4->Cost;
                     /* Choose s6 as one of s5's two neighbors on the tour */
                     for (X6 = 1; X6 <= 2; X6++) {
                         s6 = X6 == 1 ? s5->Pred : s5->Suc;
-                        if (s6 == s1 || Forbidden(s6, s1)
-                            || Fixed(s5, s6)
-                            || Deleted(s5, s6)
-                            || Added(s6, s1))
+                        if (s6 == s1 || Forbidden(s6, s1) || Fixed(s5, s6)
+                            || Deleted(s5, s6) || Added(s6, s1))
                             continue;
                         G4 = G3 + C(s5, s6);
-                        if ((!c || G4 - c(s6, s1) > 0) &&
-                            (Gain = G4 - C(s6, s1)) > 0) {
+                        if ((!c || G4 - c(s6, s1) > 0)
+                            && (Gain = G4 - C(s6, s1)) > 0) {
                             if (!pSaved) {
-                                pSaved = (int *) malloc(2 * k * sizeof(int));
+                                pSaved = (int*)malloc(2 * k * sizeof(int));
                                 memcpy(pSaved, p + 1, 2 * k * sizeof(int));
                             }
                             t[2 * (k + m) + 1] = s5;
@@ -210,7 +195,7 @@ static GainType PatchCyclesRec(int k, int m, int M, GainType G0)
     if (S4) {
         int OldCycle = CurrentCycle;
         if (!pSaved) {
-            pSaved = (int *) malloc(2 * k * sizeof(int));
+            pSaved = (int*)malloc(2 * k * sizeof(int));
             memcpy(pSaved, p + 1, 2 * k * sizeof(int));
         }
         t[2 * (k + m) - 1] = S3;
@@ -237,7 +222,7 @@ static GainType PatchCyclesRec(int k, int m, int M, GainType G0)
         }
     }
 
-  End_PatchCyclesRec:
+End_PatchCyclesRec:
     free(cycleSaved);
     free(pSaved);
     return Gain;
@@ -250,7 +235,7 @@ static GainType PatchCyclesRec(int k, int m, int M, GainType G0)
  * Time complexity: O(log k).
  */
 
-static int Cycle(Node * N, int k)
+static int Cycle(Node* N, int k)
 {
     /* Binary search */
     int Low = 1, High = k;
@@ -280,7 +265,7 @@ static int ShortestCycle(int M, int k)
     int i, Cycle, MinCycle = 0;
     int *Size, MinSize = INT_MAX;
 
-    Size = (int *) calloc(1 + M, sizeof(int));
+    Size = (int*)calloc(1 + M, sizeof(int));
     p[0] = p[2 * k];
     for (i = 0; i < 2 * k; i += 2)
         Size[cycle[p[i]]] += SegmentSize(t[p[i]], t[p[i + 1]]);

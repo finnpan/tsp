@@ -1,8 +1,8 @@
 #include "Segment.h"
 #include "LKH.h"
 
-/* 
- * The StoreTour function is called each time the tour has been improved by 
+/*
+ * The StoreTour function is called each time the tour has been improved by
  * the LinKernighan function.
  *
  * The function "activates" all nodes involved in the current sequence of moves.
@@ -13,23 +13,24 @@
  * excludable.
  *
  * Finally, for each of these nodes the function updates their Cost field.
- * The Cost field contains for each node its minimum cost of candidate edges 
- * not on the tour. The value is used by the BestMove function to decide 
- * whether a tentative non-gainful move should be considered. 
+ * The Cost field contains for each node its minimum cost of candidate edges
+ * not on the tour. The value is used by the BestMove function to decide
+ * whether a tentative non-gainful move should be considered.
  */
 
 void StoreTour()
 {
     Node *t, *u;
-    Candidate *Nt;
+    Candidate* Nt;
     int i;
 
     while (Swaps > 0) {
         Swaps--;
         for (i = 1; i <= 4; i++) {
-            t = i == 1 ? SwapStack[Swaps].t1 :
-                i == 2 ? SwapStack[Swaps].t2 :
-                i == 3 ? SwapStack[Swaps].t3 : SwapStack[Swaps].t4;
+            t = i == 1   ? SwapStack[Swaps].t1
+                : i == 2 ? SwapStack[Swaps].t2
+                : i == 3 ? SwapStack[Swaps].t3
+                         : SwapStack[Swaps].t4;
             Activate(t);
             t->OldPred = t->Pred;
             t->OldSuc = t->Suc;

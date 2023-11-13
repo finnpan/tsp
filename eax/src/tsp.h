@@ -43,37 +43,37 @@ using EvalType = int32_t;
 class Evaluator;
 class Indi {
 public:
-    Indi ();
-    ~Indi ();
+    Indi();
+    ~Indi();
 
-    Indi (const Indi&) = delete;
-    Indi& operator= (const Indi&);
-    Indi (Indi&&) = delete;
-    Indi& operator= (Indi&&) = delete;
+    Indi(const Indi&) = delete;
+    Indi& operator=(const Indi&);
+    Indi(Indi&&) = delete;
+    Indi& operator=(Indi&&) = delete;
 
-    void Define (int n);
-    void MakeRand (const Evaluator* e);
+    void Define(int n);
+    void MakeRand(const Evaluator* e);
 
-    int        _numCity;
-    int**      _link;
-    EvalType   _cost;
+    int _numCity;
+    int** _link;
+    EvalType _cost;
 };
 
 class Evaluator {
 public:
-    Evaluator ();
-    ~Evaluator ();
+    Evaluator();
+    ~Evaluator();
 
-    void DoIt (Indi& indi) const;
-    void SetInstance (const char filename[]);
+    void DoIt(Indi& indi) const;
+    void SetInstance(const char filename[]);
 
     std::random_device* const _rDev;
-    std::mt19937* const       _rand;
-    const int                 _maxNumNear;
-    int                       _numCity;
-    EvalType**                _cost;
-    int**                     _near;
-    int*                      _buf;
+    std::mt19937* const _rand;
+    const int _maxNumNear;
+    int _numCity;
+    EvalType** _cost;
+    int** _near;
+    int* _buf;
 
 private:
     double* _x;
@@ -82,22 +82,22 @@ private:
 
 class KOpt {
 public:
-    KOpt (const Evaluator* e);
-    ~KOpt ();
+    KOpt(const Evaluator* e);
+    ~KOpt();
 
-    void DoIt (Indi& indi);
+    void DoIt(Indi& indi);
 
 private:
-    void SetInvNearList ();
-    void TransIndiToTree (const Indi& indi);
-    void TransTreeToIndi (Indi& indi) const;
-    void Local_search_2_opt_neighborhood ();
+    void SetInvNearList();
+    void TransIndiToTree(const Indi& indi);
+    void TransTreeToIndi(Indi& indi) const;
+    void Local_search_2_opt_neighborhood();
 
 private:
     const Evaluator* const _eval;
-    const int              _numCity;
-    TwoLevelTree* const    _tree;
-    const int              _maxNumINL;
-    int*                   _numINL;
-    int**                  _invNearList;
+    const int _numCity;
+    TwoLevelTree* const _tree;
+    const int _maxNumINL;
+    int* _numINL;
+    int** _invNearList;
 };

@@ -1,13 +1,13 @@
 #include "LKH.h"
 
 /*
- * The Flip function performs a 2-opt move. Edges (t1,t2) and (t3,t4) 
- * are exchanged with edges (t2,t3) and (t4,t1). Node t4 is one of 
+ * The Flip function performs a 2-opt move. Edges (t1,t2) and (t3,t4)
+ * are exchanged with edges (t2,t3) and (t4,t1). Node t4 is one of
  * t3's two neighbors on the tour; which one is uniquely determined
  * by the orientation of (t1,t2).
  *
- * The function is only used if the doubly linked list representation 
- * is used for a tour; if the two-level tree representation is used, 
+ * The function is only used if the doubly linked list representation
+ * is used for a tour; if the two-level tree representation is used,
  * the function Flip_SL is used instead.
  *
  * The 2-opt move is made by swapping Pred and Suc of each node of the
@@ -18,23 +18,22 @@
  *
  * Any of two segments defined by the 2-opt move may be reversed. The
  * segment with the smallest number of nodes is reversed in order to
- * speed up computations. The number of nodes in a segment is found 
- * from the Rank-values. 
- * 
+ * speed up computations. The number of nodes in a segment is found
+ * from the Rank-values.
+ *
  * The move is pushed onto a stack of 2-opt moves. The stack makes it
  * possible to undo moves (by the RestoreTour function).
  *
- * Finally, the hash value corresponding to the tour is updated. 
+ * Finally, the hash value corresponding to the tour is updated.
  */
 
-void Flip(Node * t1, Node * t2, Node * t3)
+void Flip(Node* t1, Node* t2, Node* t3)
 {
     Node *s1, *s2, *t4;
     int R, Temp, Ct2t3, Ct4t1;
 
     assert(t1->Pred == t2 || t1->Suc == t2);
-    if (t3 == t2->Pred || t3 == t2->Suc)
-        return;
+    if (t3 == t2->Pred || t3 == t2->Suc) return;
     t4 = t1->Suc == t2 ? t3->Pred : t3->Suc;
     if (t1->Suc != t2) {
         s1 = t1;
@@ -45,8 +44,7 @@ void Flip(Node * t1, Node * t2, Node * t3)
         t4 = s1;
     }
     /* Find the segment with the smallest number of nodes */
-    if ((R = t2->Rank - t3->Rank) < 0)
-        R += Dimension;
+    if ((R = t2->Rank - t3->Rank) < 0) R += Dimension;
     if (2 * R > Dimension) {
         s1 = t3;
         t3 = t2;
@@ -79,7 +77,6 @@ void Flip(Node * t1, Node * t2, Node * t3)
     SwapStack[Swaps].t3 = t3;
     SwapStack[Swaps].t4 = t4;
     Swaps++;
-    Hash ^= (Rand[t1->Id] * Rand[t2->Id]) ^
-        (Rand[t3->Id] * Rand[t4->Id]) ^
-        (Rand[t2->Id] * Rand[t3->Id]) ^ (Rand[t4->Id] * Rand[t1->Id]);
+    Hash ^= (Rand[t1->Id] * Rand[t2->Id]) ^ (Rand[t3->Id] * Rand[t4->Id])
+            ^ (Rand[t2->Id] * Rand[t3->Id]) ^ (Rand[t4->Id] * Rand[t1->Id]);
 }

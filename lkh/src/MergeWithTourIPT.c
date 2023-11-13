@@ -2,18 +2,18 @@
 
 /*
  * The MergeWithTourIPT function attempts to find a short tour
- * by merging a given tour, T1, with another tour, T2. 
- * T1 is given by the Suc pointers of its nodes. 
+ * by merging a given tour, T1, with another tour, T2.
+ * T1 is given by the Suc pointers of its nodes.
  * T2 is given by the Next pointers of its nodes.
  *
  * The merging algorithm may be described as follows:
- * Let G be the graph consisting of the nodes and the union of the 
- * edges of T1 and T2. Attempt - in all possible ways - 
- * to separate the nodes of G into two disjoint sets (A,B) such 
- * that the cardinality of edges connecting A with B is exactly two. 
+ * Let G be the graph consisting of the nodes and the union of the
+ * edges of T1 and T2. Attempt - in all possible ways -
+ * to separate the nodes of G into two disjoint sets (A,B) such
+ * that the cardinality of edges connecting A with B is exactly two.
  * If this is possible, any replacement of T1's A-edges with T2's
- * A-edges results in a tour. The same holds for the B-edges. 
- * If such a replacement reduces the cost of one the tours, then make it. 
+ * A-edges results in a tour. The same holds for the B-edges.
+ * If such a replacement reduces the cost of one the tours, then make it.
  *
  * If a tour T shorter than T1 and T2 is found, Pred and Suc of each node
  * point to its neighbors in T, and T's cost is returned.
@@ -23,8 +23,8 @@
  * The implementation is inspired by the algorithm described in the
  * paper
  *
- *   A. Mobius, B. Freisleben, P. Merz, and M. Schreiber, 
- *   "Combinatorial Optimization by Iterative Partial Transcription", 
+ *   A. Mobius, B. Freisleben, P. Merz, and M. Schreiber,
+ *   "Combinatorial Optimization by Iterative Partial Transcription",
  *   Physical Review E, Volume 59, Number 4, pp. 4667-4674, 1999.
  */
 
@@ -42,8 +42,8 @@ GainType MergeWithTourIPT()
     while ((N = N->Suc) != FirstNode);
     do {
         Cost1 += N->Cost = C(N, N->Suc) - N->Pi - N->Suc->Pi;
-        if ((N->Suc == N->Prev || N->Suc == N->Next) &&
-            (N->Pred == N->Prev || N->Pred == N->Next))
+        if ((N->Suc == N->Prev || N->Suc == N->Next)
+            && (N->Pred == N->Prev || N->Pred == N->Next))
             N->V = 0;
         else {
             N->V = 1;
@@ -51,17 +51,17 @@ GainType MergeWithTourIPT()
             First = N;
         }
     } while ((N = N->Suc) != FirstNode);
-    if (NewDimension == 0)
-        return Cost1 / Precision;
+    if (NewDimension == 0) return Cost1 / Precision;
     do {
-        Cost2 += N->NextCost = N->Next == N->Pred ? N->Pred->Cost :
-            N->Next == N->Suc ? N->Cost :
-            C(N, N->Next) - N->Pi - N->Next->Pi;
+        Cost2 += N->NextCost = N->Next == N->Pred ? N->Pred->Cost
+                               : N->Next == N->Suc
+                                   ? N->Cost
+                                   : C(N, N->Next) - N->Pi - N->Next->Pi;
     } while ((N = N->Next) != FirstNode);
     OldCost1 = Cost1;
 
-    /* Shrink the tours. 
-       OldPred and OldSuc represent the shrunken T1. 
+    /* Shrink the tours.
+       OldPred and OldSuc represent the shrunken T1.
        Prev and Next represent the shrunken T2 */
     N = First;
     Last = 0;
@@ -70,15 +70,13 @@ GainType MergeWithTourIPT()
             N->Rank = ++Rank;
             if (Last) {
                 (Last->OldSuc = N)->OldPred = Last;
-                if (Last != N->Pred)
-                    Last->Cost = 0;
+                if (Last != N->Pred) Last->Cost = 0;
             }
             Last = N;
         }
     } while ((N = N->Suc) != First);
     (Last->OldSuc = First)->OldPred = Last;
-    if (Last != First->Pred)
-        Last->Cost = 0;
+    if (Last != First->Pred) Last->Cost = 0;
     N = First;
     Last = 0;
     do {
@@ -105,30 +103,26 @@ GainType MergeWithTourIPT()
         MinSubSize = NewDimension / 2;
         N1 = First;
         do {
-            while (N1->OldSuc != First &&
-                   (N1->OldSuc == N1->Next || N1->OldSuc == N1->Prev))
+            while (N1->OldSuc != First
+                   && (N1->OldSuc == N1->Next || N1->OldSuc == N1->Prev))
                 N1 = N1->OldSuc;
-            if (N1->OldSuc == First &&
-                (N1->OldSuc == N1->Next || N1->OldSuc == N1->Prev))
+            if (N1->OldSuc == First
+                && (N1->OldSuc == N1->Next || N1->OldSuc == N1->Prev))
                 break;
             for (Forward = 1, N2 = N1->Next; Forward >= 0;
                  Forward--, N2 = N1->Prev) {
-                if (N2 == N1->OldSuc || N2 == N1->OldPred)
-                    continue;
+                if (N2 == N1->OldSuc || N2 == N1->OldPred) continue;
                 SubSize2 = MaxSubSize1 = 0;
                 do {
-                    if (++SubSize2 >= MinSubSize)
-                        break;
+                    if (++SubSize2 >= MinSubSize) break;
                     if ((SubSize1 = N2->Rank - N1->Rank) < 0)
                         SubSize1 += NewDimension;
-                    if (SubSize1 >= MinSubSize)
-                        break;
+                    if (SubSize1 >= MinSubSize) break;
                     if (SubSize1 > MaxSubSize1) {
                         if (SubSize1 == SubSize2) {
                             for (N = N1, Gain = 0; N != N2; N = N->OldSuc)
                                 Gain += N->Cost - N->NextCost;
-                            if (!Forward)
-                                Gain += N1->NextCost - N2->NextCost;
+                            if (!Forward) Gain += N1->NextCost - N2->NextCost;
                             if (Gain != 0) {
                                 MinSubSize = SubSize1;
                                 MinN1 = N1;
@@ -142,8 +136,7 @@ GainType MergeWithTourIPT()
                     }
                 } while ((N2 = Forward ? N2->Next : N2->Prev) != N1);
             }
-        } while ((N1 = N1->OldSuc) != First &&
-                 MinSubSize != BestMinSubSize);
+        } while ((N1 = N1->OldSuc) != First && MinSubSize != BestMinSubSize);
         if (MinN1) {
             BestMinSubSize = MinSubSize;
             if (MinGain > 0) {
@@ -155,8 +148,7 @@ GainType MergeWithTourIPT()
                     (N->OldSuc = NNext)->OldPred = N;
                     N->Rank = Rank;
                     N->Cost = MinForward ? N->NextCost : NNext->NextCost;
-                    if (++Rank > NewDimension)
-                        Rank = 1;
+                    if (++Rank > NewDimension) Rank = 1;
                 }
             } else {
                 Improved2 = 1;
@@ -181,8 +173,9 @@ GainType MergeWithTourIPT()
         }
     } while (MinN1);
 
-    if (Cost1 < Cost2 ? !Improved1 : Cost2 < Cost1 ? !Improved2 :
-        !Improved1 || !Improved2)
+    if (Cost1 < Cost2   ? !Improved1
+        : Cost2 < Cost1 ? !Improved2
+                        : !Improved1 || !Improved2)
         return OldCost1 / Precision;
 
     /* Expand the best tour into a full tour */
@@ -212,8 +205,7 @@ GainType MergeWithTourIPT()
     do {
         N->OldSuc->Pred = N;
         Hash ^= Rand[N->Id] * Rand[N->OldSuc->Id];
-    }
-    while ((N = N->Suc = N->OldSuc) != First);
+    } while ((N = N->Suc = N->OldSuc) != First);
     if (TraceLevel >= 2)
         printff("IPT: " GainFormat "\n",
                 (Cost1 <= Cost2 ? Cost1 : Cost2) / Precision);

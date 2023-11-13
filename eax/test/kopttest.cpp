@@ -4,7 +4,7 @@
 #include "tsp.h"
 #undef private
 
-int main (int argc, char* argv[])
+int main(int argc, char* argv[])
 {
     if (argc < 2) {
         printf("Error: please input instance file!\n");
@@ -30,8 +30,8 @@ int main (int argc, char* argv[])
     }
 
     printf("\e[1;32m[ ==== PASSED ==== ] KOpt tested: ");
-    printf("iter = %d, avg = %5.5lf, time = %5.5f\n",
-           times, (double)e/times, (double)(t)/CLOCKS_PER_SEC);
+    printf("iter = %d, avg = %5.5lf, time = %5.5f\n", times, (double)e / times,
+           (double)(t) / CLOCKS_PER_SEC);
     printf("\e[0m");
 
     return 0;

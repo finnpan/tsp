@@ -29,7 +29,7 @@
  *
  * BACKTRACKING = { YES | NO }
  * Specifies whether a backtracking k-opt move is to be used as the first
- * move in a sequence of moves (where k = MOVE_TYPE). 
+ * move in a sequence of moves (where k = MOVE_TYPE).
  * Default: NO
  *
  * CANDIDATE_FILE = <string>
@@ -104,7 +104,7 @@
  * The initial step size used in the ascent.
  * Default: 1
  *
- * INITIAL_TOUR_ALGORITHM = { BORUVKA | GREEDY | MOORE | NEAREST-NEIGHBOR | 
+ * INITIAL_TOUR_ALGORITHM = { BORUVKA | GREEDY | MOORE | NEAREST-NEIGHBOR |
  *                            QUICK-BORUVKA | SIERPINSKI | WALK }
  * Specifies the algorithm for obtaining an initial tour.
  * Default: WALK
@@ -115,7 +115,7 @@
  * giving the sequence in which the nodes are visited in the tour.
  * The tour is terminated by a -1.
  * See also INITIAL_TOUR_FRACTION.
- * 
+ *
  * INITIAL_TOUR_FRACTION = <real in [0;1]>
  * Specifies the fraction of the initial tour to be constructed by means
  * of INITIAL_TOUR_FILE edges.
@@ -269,7 +269,7 @@
  * be used. The value 0 signifies that all moves are of the same type
  * (K = MOVE_TYPE).
  * Default: 0
- * 
+ *
  * SUBSEQUENT_PATCHING = { YES | NO }
  * Specifies whether patching is used for moves following the first move
  * in a sequence of moves.
@@ -308,7 +308,7 @@
  *     COMPRESSED        C
  *     EXTENDED          E
  *     GREEDY            G
- *     IPT               I 
+ *     IPT               I
  *     KARP              KA
  *     K-CENTER          K-C
  *     K-MEANS           K-M
@@ -326,8 +326,8 @@
  */
 
 static char Delimiters[] = "= \n\t\r\f\v\xef\xbb\xbf";
-static char *GetFileName(char *Line);
-static char *ReadYesOrNo(int *V);
+static char* GetFileName(char* Line);
+static char* ReadYesOrNo(int* V);
 #undef max
 
 void ReadParameters()
@@ -377,8 +377,7 @@ void ReadParameters()
 
     if (ParameterFileName) {
         if (!(ParameterFile = fopen(ParameterFileName, "r")))
-            eprintf("Cannot open PARAMETER_FILE: \"%s\"",
-                    ParameterFileName);
+            eprintf("Cannot open PARAMETER_FILE: \"%s\"", ParameterFileName);
         printff("PARAMETER_FILE = %s\n", ParameterFileName);
     } else {
         while (1) {
@@ -397,21 +396,19 @@ void ReadParameters()
         }
     }
     while ((Line = ReadLine(ParameterFile))) {
-        if (!(Keyword = strtok(Line, Delimiters)))
-            continue;
-        if (Keyword[0] == '#')
-            continue;
+        if (!(Keyword = strtok(Line, Delimiters))) continue;
+        if (Keyword[0] == '#') continue;
         for (i = 0; i < strlen(Keyword); i++)
-            Keyword[i] = (char) toupper(Keyword[i]);
+            Keyword[i] = (char)toupper(Keyword[i]);
         if (!strcmp(Keyword, "ASCENT_CANDIDATES")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &AscentCandidates))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &AscentCandidates))
                 eprintf("ASCENT_CANDIDATES: integer expected");
             if (AscentCandidates < 2)
                 eprintf("ASCENT_CANDIDATES: >= 2 expected");
         } else if (!strcmp(Keyword, "BACKBONE_TRIALS")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &BackboneTrials))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &BackboneTrials))
                 eprintf("BACKBONE_TRIALS: integer expected");
             if (BackboneTrials < 0)
                 eprintf("BACKBONE_TRIALS: non-negative integer expected");
@@ -425,23 +422,22 @@ void ReadParameters()
         } else if (!strcmp(Keyword, "EOF")) {
             break;
         } else if (!strcmp(Keyword, "EXCESS")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%lf", &Excess))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%lf", &Excess))
                 eprintf("EXCESS: real expected");
-            if (Excess < 0)
-                eprintf("EXCESS: non-negeative real expected");
+            if (Excess < 0) eprintf("EXCESS: non-negeative real expected");
         } else if (!strcmp(Keyword, "EXTRA_CANDIDATES")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &ExtraCandidates))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &ExtraCandidates))
                 eprintf("EXTRA_CANDIDATES: integer expected");
             if (ExtraCandidates < 0)
                 eprintf("EXTRA_CANDIDATES: non-negative integer expected");
             if ((Token = strtok(0, Delimiters))) {
                 for (i = 0; i < strlen(Token); i++)
-                    Token[i] = (char) toupper(Token[i]);
+                    Token[i] = (char)toupper(Token[i]);
                 if (strncmp(Token, "SYMMETRIC", strlen(Token)))
-                    eprintf
-                        ("(EXTRA_CANDIDATES) Illegal SYMMETRIC specification");
+                    eprintf(
+                        "(EXTRA_CANDIDATES) Illegal SYMMETRIC specification");
                 ExtraCandidateSetSymmetric = 1;
             }
         } else if (!strcmp(Keyword, "EXTRA_CANDIDATE_SET_TYPE")) {
@@ -453,104 +449,102 @@ void ReadParameters()
             if (!ReadYesOrNo(&GainCriterionUsed))
                 eprintf("GAIN_CRITERION: YES or NO expected");
         } else if (!strcmp(Keyword, "INITIAL_PERIOD")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &InitialPeriod))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &InitialPeriod))
                 eprintf("INITIAL_PERIOD: integer expected");
             if (InitialPeriod < 0)
                 eprintf("INITIAL_PERIOD: non-negative integer expected");
         } else if (!strcmp(Keyword, "INITIAL_STEP_SIZE")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &InitialStepSize))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &InitialStepSize))
                 eprintf("INITIAL_STEP_SIZE: integer expected");
             if (InitialStepSize <= 0)
                 eprintf("INITIAL_STEP_SIZE: positive integer expected");
         } else if (!strcmp(Keyword, "KICK_TYPE")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &KickType))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &KickType))
                 eprintf("KICK_TYPE: integer expected");
             if (KickType != 0 && KickType < 4)
                 eprintf("KICK_TYPE: integer >= 4 expected");
         } else if (!strcmp(Keyword, "KICKS")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &Kicks))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &Kicks))
                 eprintf("KICKS: integer expected");
-            if (Kicks < 0)
-                eprintf("KICKS: non-negative integer expected");
+            if (Kicks < 0) eprintf("KICKS: non-negative integer expected");
         } else if (!strcmp(Keyword, "MAX_BREADTH")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &MaxBreadth))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &MaxBreadth))
                 eprintf("MAX_BREADTH: integer expected");
             if (MaxBreadth < 0)
                 eprintf("MAX_BREADTH: non-negative integer expected");
         } else if (!strcmp(Keyword, "MAX_CANDIDATES")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &MaxCandidates))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &MaxCandidates))
                 eprintf("MAX_CANDIDATES: integer expected");
             if (MaxCandidates < 0)
                 eprintf("MAX_CANDIDATES: non-negative integer expected");
             if ((Token = strtok(0, Delimiters))) {
                 for (i = 0; i < strlen(Token); i++)
-                    Token[i] = (char) toupper(Token[i]);
+                    Token[i] = (char)toupper(Token[i]);
                 if (!strncmp(Token, "SYMMETRIC", strlen(Token)))
                     CandidateSetSymmetric = 1;
                 else
-                    eprintf
-                        ("(MAX_CANDIDATES) Illegal SYMMETRIC specification");
+                    eprintf("(MAX_CANDIDATES) Illegal SYMMETRIC specification");
             }
         } else if (!strcmp(Keyword, "MAX_SWAPS")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &MaxSwaps))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &MaxSwaps))
                 eprintf("MAX_SWAPS: integer expected");
             if (MaxSwaps < 0)
                 eprintf("MAX_SWAPS: non-negative integer expected");
         } else if (!strcmp(Keyword, "MAX_TRIALS")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &MaxTrials))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &MaxTrials))
                 eprintf("MAX_TRIALS: integer expected");
             if (MaxTrials < 0)
                 eprintf("MAX_TRIALS: non-negative integer expected");
         } else if (!strcmp(Keyword, "MOVE_TYPE")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &MoveType))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &MoveType))
                 eprintf("MOVE_TYPE: integer expected");
-            if (MoveType < 2)
-                eprintf("MOVE_TYPE: >= 2 expected");
+            if (MoveType < 2) eprintf("MOVE_TYPE: >= 2 expected");
         } else if (!strcmp(Keyword, "NONSEQUENTIAL_MOVE_TYPE")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &NonsequentialMoveType))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &NonsequentialMoveType))
                 eprintf("NONSEQUENTIAL_MOVE_TYPE: integer expected");
             if (NonsequentialMoveType < 4)
                 eprintf("NONSEQUENTIAL_MOVE_TYPE: >= 4 expected");
         } else if (!strcmp(Keyword, "OPTIMUM")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, GainInputFormat, &Optimum))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, GainInputFormat, &Optimum))
                 eprintf("OPTIMUM: integer expected");
         } else if (!strcmp(Keyword, "PATCHING_A")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &PatchingA))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &PatchingA))
                 eprintf("PATCHING_A: integer expected");
             if (PatchingA < 0)
                 eprintf("PATCHING_A: non-negative integer expected");
             if ((Token = strtok(0, Delimiters))) {
                 for (i = 0; i < strlen(Token); i++)
-                    Token[i] = (char) toupper(Token[i]);
+                    Token[i] = (char)toupper(Token[i]);
                 if (!strncmp(Token, "RESTRICTED", strlen(Token)))
                     PatchingARestricted = 1;
                 else if (!strncmp(Token, "EXTENDED", strlen(Token)))
                     PatchingAExtended = 1;
                 else
-                    eprintf("%s", "(PATCHING_A) "
+                    eprintf("%s",
+                            "(PATCHING_A) "
                             "Illegal RESTRICTED or EXTENDED specification");
             }
         } else if (!strcmp(Keyword, "PATCHING_C")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &PatchingC))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &PatchingC))
                 eprintf("PATCHING_C: integer expected");
             if (PatchingC < 0)
                 eprintf("PATCHING_C: non-negative integer expected");
             if ((Token = strtok(0, Delimiters))) {
                 for (i = 0; i < strlen(Token); i++)
-                    Token[i] = (char) toupper(Token[i]);
+                    Token[i] = (char)toupper(Token[i]);
                 if (!strncmp(Token, "RESTRICTED", strlen(Token)))
                     PatchingCRestricted = 1;
                 else if (!strncmp(Token, "EXTENDED", strlen(Token)))
@@ -560,8 +554,8 @@ void ReadParameters()
                             "Illegal RESTRICTED or EXTENDED specification");
             }
         } else if (!strcmp(Keyword, "PRECISION")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &Precision))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &Precision))
                 eprintf("PRECISION: integer expected");
         } else if (!strcmp(Keyword, "PROBLEM_FILE")) {
             if (!(ProblemFileName = GetFileName(0)))
@@ -572,14 +566,11 @@ void ReadParameters()
             if (!ReadYesOrNo(&RestrictedSearch))
                 eprintf("RESTRICTED_SEARCH: YES or NO expected");
         } else if (!strcmp(Keyword, "RUNS")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &Runs))
+            if (!(Token = strtok(0, Delimiters)) || !sscanf(Token, "%d", &Runs))
                 eprintf("RUNS: integer expected");
-            if (Runs <= 0)
-                eprintf("RUNS: positive integer expected");
+            if (Runs <= 0) eprintf("RUNS: positive integer expected");
         } else if (!strcmp(Keyword, "SEED")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%u", &Seed))
+            if (!(Token = strtok(0, Delimiters)) || !sscanf(Token, "%u", &Seed))
                 eprintf("SEED: integer expected");
         } else if (!strcmp(Keyword, "STOP_AT_OPTIMUM")) {
             if (!ReadYesOrNo(&StopAtOptimum))
@@ -588,8 +579,7 @@ void ReadParameters()
             if (!ReadYesOrNo(&Subgradient))
                 eprintf("SUBGRADIENT: YES or NO expected");
         } else if (!strcmp(Keyword, "SEED")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%u", &Seed))
+            if (!(Token = strtok(0, Delimiters)) || !sscanf(Token, "%u", &Seed))
                 eprintf("SEED: integer expected");
         } else if (!strcmp(Keyword, "STOP_AT_OPTIMUM")) {
             if (!ReadYesOrNo(&StopAtOptimum))
@@ -598,8 +588,8 @@ void ReadParameters()
             if (!ReadYesOrNo(&Subgradient))
                 eprintf("SUBGRADIENT: YES or NO expected");
         } else if (!strcmp(Keyword, "SUBSEQUENT_MOVE_TYPE")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &SubsequentMoveType))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &SubsequentMoveType))
                 eprintf("SUBSEQUENT_MOVE_TYPE: integer expected");
             if (SubsequentMoveType != 0 && SubsequentMoveType < 2)
                 eprintf("SUBSEQUENT_MOVE_TYPE: 0 or >= 2 expected");
@@ -607,64 +597,58 @@ void ReadParameters()
             if (!ReadYesOrNo(&SubsequentPatching))
                 eprintf("SUBSEQUENT_PATCHING: YES or NO expected");
         } else if (!strcmp(Keyword, "TIME_LIMIT")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%lf", &TimeLimit))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%lf", &TimeLimit))
                 eprintf("TIME_LIMIT: real expected");
-            if (TimeLimit < 0)
-                eprintf("TIME_LIMIT: >= 0 expected");
+            if (TimeLimit < 0) eprintf("TIME_LIMIT: >= 0 expected");
         } else if (!strcmp(Keyword, "TOTAL_TIME_LIMIT")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%lf", &TotalTimeLimit))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%lf", &TotalTimeLimit))
                 eprintf("TOTAL_TIME_LIMIT: real expected");
-            if (TimeLimit < 0)
-                eprintf("TOTAL_TIME_LIMIT: >= 0 expected");
+            if (TimeLimit < 0) eprintf("TOTAL_TIME_LIMIT: >= 0 expected");
         } else if (!strcmp(Keyword, "TRACE_LEVEL")) {
-            if (!(Token = strtok(0, Delimiters)) ||
-                !sscanf(Token, "%d", &TraceLevel))
+            if (!(Token = strtok(0, Delimiters))
+                || !sscanf(Token, "%d", &TraceLevel))
                 eprintf("TRACE_LEVEL: integer expected");
         } else
             eprintf("Unknown keyword: %s", Keyword);
         if ((Token = strtok(0, Delimiters)) && Token[0] != '#')
             eprintf("Junk at end of line: %s", Token);
     }
-    if (!ProblemFileName)
-        eprintf("Problem file name is missing");
+    if (!ProblemFileName) eprintf("Problem file name is missing");
     fclose(ParameterFile);
     free(LastLine);
     LastLine = 0;
 }
 
-static char *GetFileName(char *Line)
+static char* GetFileName(char* Line)
 {
     char *Rest = strtok(Line, "\n\t\r\f"), *t;
 
-    if (!Rest)
-        return 0;
+    if (!Rest) return 0;
     while (isspace(*Rest))
         Rest++;
     if (!Line) {
-        if (*Rest == '=')
-            Rest++;
+        if (*Rest == '=') Rest++;
     }
     while (isspace(*Rest))
         Rest++;
     for (t = Rest + strlen(Rest) - 1; isspace(*t); t--)
         *t = '\0';
-    if (!strlen(Rest))
-        return 0;
-    t = (char *) malloc(strlen(Rest) + 1);
+    if (!strlen(Rest)) return 0;
+    t = (char*)malloc(strlen(Rest) + 1);
     strcpy(t, Rest);
     return t;
 }
 
-static char *ReadYesOrNo(int *V)
+static char* ReadYesOrNo(int* V)
 {
-    char *Token = strtok(0, Delimiters);
+    char* Token = strtok(0, Delimiters);
 
     if (Token) {
         unsigned int i;
         for (i = 0; i < strlen(Token); i++)
-            Token[i] = (char) toupper(Token[i]);
+            Token[i] = (char)toupper(Token[i]);
         if (!strncmp(Token, "YES", strlen(Token)))
             *V = 1;
         else if (!strncmp(Token, "NO", strlen(Token)))

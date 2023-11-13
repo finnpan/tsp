@@ -4,9 +4,9 @@ License: see tree.h
 
 #include "tree.h"
 
-TwoLevelTree::TwoLevelTree (int cityNum, int originCity) :
-    _segNum(static_cast<int>(std::sqrt(cityNum)) + 1),
-    _cityNum(cityNum), _originCity(originCity)
+TwoLevelTree::TwoLevelTree(int cityNum, int originCity)
+    : _segNum(static_cast<int>(std::sqrt(cityNum)) + 1), _cityNum(cityNum),
+      _originCity(originCity)
 {
     assert(_cityNum > 0);
     assert(_originCity >= 0);
@@ -16,7 +16,7 @@ TwoLevelTree::TwoLevelTree (int cityNum, int originCity) :
     _nominalSegLen = cityNum / ParentNum();
 }
 
-TwoLevelTree::~TwoLevelTree ()
+TwoLevelTree::~TwoLevelTree()
 {
     if (_parentNodes) {
         delete[] _parentNodes;
@@ -28,7 +28,7 @@ TwoLevelTree::~TwoLevelTree ()
     }
 }
 
-TwoLevelTree& TwoLevelTree::operator= (const TwoLevelTree& other) noexcept
+TwoLevelTree& TwoLevelTree::operator=(const TwoLevelTree& other) noexcept
 {
     if (this == &other) {
         return *this;
@@ -44,12 +44,12 @@ TwoLevelTree& TwoLevelTree::operator= (const TwoLevelTree& other) noexcept
 
     auto* origNode = other.OriginCityNode();
     ChildNode::Iter begin(origNode, 0, _cityNum),
-                    last(origNode->prev, _cityNum-1, _cityNum);
+        last(origNode->prev, _cityNum - 1, _cityNum);
     SetTour(begin, last);
     return *this;
 }
 
-TwoLevelTree& TwoLevelTree::operator= (TwoLevelTree&& other)
+TwoLevelTree& TwoLevelTree::operator=(TwoLevelTree&& other)
 {
     if (this == &other) {
         return *this;
@@ -69,8 +69,8 @@ TwoLevelTree& TwoLevelTree::operator= (TwoLevelTree&& other)
     return *this;
 }
 
-bool TwoLevelTree::Between (const ChildNode* a, const ChildNode* b,
-                            const ChildNode* c) const
+bool TwoLevelTree::Between(const ChildNode* a, const ChildNode* b,
+                           const ChildNode* c) const
 {
     assert(a != b && a != c && b != c);
     auto *pa = a->parent, *pb = b->parent, *pc = c->parent;
@@ -124,12 +124,12 @@ bool TwoLevelTree::Between (const ChildNode* a, const ChildNode* b,
  * The two arcs should both be in forward or backward orientation.
  * Either (a, d) or (b, c) is reversed. The smaller one is preferred.
  */
-void TwoLevelTree::Flip (ChildNode* a, ChildNode* b, ChildNode* c, ChildNode* d)
+void TwoLevelTree::Flip(ChildNode* a, ChildNode* b, ChildNode* c, ChildNode* d)
 {
     bool isForward = GetNext(a) == b;
     assert((GetNext(c) == d) == isForward);
     assert(!((a == c) && (b == d)));
-    if (b == c || d == a) { // in this case, even after flip, still the same
+    if (b == c || d == a) {  // in this case, even after flip, still the same
         return;
     }
 
@@ -161,8 +161,8 @@ void TwoLevelTree::Flip (ChildNode* a, ChildNode* b, ChildNode* c, ChildNode* d)
  * and there should be at least one other node between each pairs of them.
  * (2) Any two of a, b, c, d should lie in diffrent segments.
  */
-void TwoLevelTree::DoubleBridgeMove (ChildNode* a, ChildNode* b,
-                                     ChildNode* c, ChildNode* d)
+void TwoLevelTree::DoubleBridgeMove(ChildNode* a, ChildNode* b, ChildNode* c,
+                                    ChildNode* d)
 {
     assert(Between(a, b, c));
     assert(Between(b, c, d));
@@ -174,8 +174,7 @@ void TwoLevelTree::DoubleBridgeMove (ChildNode* a, ChildNode* b,
     assert(b->parent != c->parent);
     assert(b->parent != d->parent);
     assert(c->parent != d->parent);
-    auto *an = GetNext(a), *bn = GetNext(b),
-         *cn = GetNext(c), *dn = GetNext(d);
+    auto *an = GetNext(a), *bn = GetNext(b), *cn = GetNext(c), *dn = GetNext(d);
 
     // (1) split and merge to make all the above segment boundaries
     ChildNode* arr[4] = {a, b, c, d};
@@ -187,11 +186,9 @@ void TwoLevelTree::DoubleBridgeMove (ChildNode* a, ChildNode* b,
         }
 
 #ifndef NDEBUG
-        assert((p == p->parent->begin ||
-                p == p->parent->end));
+        assert((p == p->parent->begin || p == p->parent->end));
         auto* q = GetNext(p);
-        assert((q == q->parent->begin ||
-                q == q->parent->end));
+        assert((q == q->parent->begin || q == q->parent->end));
         assert(p->parent->next == q->parent);
 #endif
     }
@@ -218,7 +215,7 @@ void TwoLevelTree::DoubleBridgeMove (ChildNode* a, ChildNode* b,
  * To facilitate implementation, we use implicit rebalance here, because
  * in practice the complicated full rebalance is empricially unnecessary.
  */
-void TwoLevelTree::Reverse (ChildNode* a, ChildNode* b)
+void TwoLevelTree::Reverse(ChildNode* a, ChildNode* b)
 {
     if (a == b || GetNext(b) == a) {
         return;
@@ -276,19 +273,19 @@ void TwoLevelTree::Reverse (ChildNode* a, ChildNode* b)
     assert((p->id + 1) % ParentNum() == p->next->id);
 }
 
-void TwoLevelTree::ReverseSegment (ChildNode* a, ChildNode* b)
+void TwoLevelTree::ReverseSegment(ChildNode* a, ChildNode* b)
 {
     assert(a->parent == b->parent);
     auto* parent = a->parent;
     // if exactly a complete segment
-    if ((a == parent->begin && b == parent->end) ||
-        (b == parent->begin && a == parent->end)) {
+    if ((a == parent->begin && b == parent->end)
+        || (b == parent->begin && a == parent->end)) {
         ReverseCompleteSegment(a, b);
-    } else { // only a part of the segment
+    } else {  // only a part of the segment
         auto pathLen = std::abs(a->id - b->id) + 1;  // IDs are consecutive
         if (pathLen <= _nominalSegLen * 3 / 4) {
             ReversePartialSegment(a, b);
-        } else { // split at a and b and merge with their neighbors
+        } else {  // split at a and b and merge with their neighbors
             // leave a and b in the original segment
             // to make a complete segment for reversion
             SplitAndMerge(a, false, Direction::backward);
@@ -298,7 +295,7 @@ void TwoLevelTree::ReverseSegment (ChildNode* a, ChildNode* b)
     }
 }
 
-void TwoLevelTree::ReverseCompleteSegment (ChildNode* a, ChildNode* b)
+void TwoLevelTree::ReverseCompleteSegment(ChildNode* a, ChildNode* b)
 {
     assert(a->parent == b->parent);
     auto* const parent = a->parent;
@@ -336,7 +333,7 @@ void TwoLevelTree::ReverseCompleteSegment (ChildNode* a, ChildNode* b)
     }
 }
 
-void TwoLevelTree::ReversePartialSegment (ChildNode* a, ChildNode* b)
+void TwoLevelTree::ReversePartialSegment(ChildNode* a, ChildNode* b)
 {
     // we need change the connections and the IDs,
     // and possibly the segment endpoints
@@ -373,14 +370,14 @@ void TwoLevelTree::ReversePartialSegment (ChildNode* a, ChildNode* b)
 
     // relabel the IDs for the forward path b --> a.
     // Note ID is numbered according to node.next.
-    if (parent->reverse) { // a --next-- --next-- b
+    if (parent->reverse) {  // a --next-- --next-- b
         if (a == parent->begin) {
             id = b->next->id - partialSegLen;
         } else {
             id = a->prev->id + 1;
         }
         RelabelId(a, b, id);
-    } else { // b --next-- --next-- a
+    } else {  // b --next-- --next-- a
         if (b == parent->begin) {
             id = a->next->id - partialSegLen;
         } else {
@@ -395,11 +392,11 @@ void TwoLevelTree::ReversePartialSegment (ChildNode* a, ChildNode* b)
  * specified by the direction. If includeSelf is true, then the node s
  * is merged to its neighbor; otherwise, it stays in its own segment.
  */
-void TwoLevelTree::SplitAndMerge (ChildNode* s, bool includeSelf, Direction dir)
+void TwoLevelTree::SplitAndMerge(ChildNode* s, bool includeSelf, Direction dir)
 {
     auto* const parent = s->parent;
-    ParentNode* neighborParent = (dir == Direction::forward)?
-                                  parent->next : parent->prev;
+    ParentNode* neighborParent =
+        (dir == Direction::forward) ? parent->next : parent->prev;
 
     // the new boundary of the parent segment after being splitted
     ChildNode* boundary = nullptr;
@@ -408,9 +405,9 @@ void TwoLevelTree::SplitAndMerge (ChildNode* s, bool includeSelf, Direction dir)
     int deltaId = 0, cnt = 0;
 
     if (dir == Direction::forward) {
-        boundary = includeSelf? GetPrev(s) : s;
+        boundary = includeSelf ? GetPrev(s) : s;
         p = neighborParent->ForwardBeginNode();
-        deltaId = neighborParent->reverse? 1 : -1;
+        deltaId = neighborParent->reverse ? 1 : -1;
 
         // find last one
         q = parent->ForwardEndNode();
@@ -440,9 +437,9 @@ void TwoLevelTree::SplitAndMerge (ChildNode* s, bool includeSelf, Direction dir)
             parent->end = boundary;
         }
     } else {
-        boundary = includeSelf? GetNext(s) : s;
+        boundary = includeSelf ? GetNext(s) : s;
         p = neighborParent->BackwardBeginNode();
-        deltaId = neighborParent->reverse? -1 : 1;
+        deltaId = neighborParent->reverse ? -1 : 1;
 
         // find last one
         q = parent->BackwardEndNode();
@@ -475,5 +472,5 @@ void TwoLevelTree::SplitAndMerge (ChildNode* s, bool includeSelf, Direction dir)
 
     neighborParent->size += cnt;
     parent->size -= cnt;
-    assert(parent->size > 0); // we cannot leave an empty segment
+    assert(parent->size > 0);  // we cannot leave an empty segment
 }

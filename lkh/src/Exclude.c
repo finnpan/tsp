@@ -1,16 +1,15 @@
 #include "LKH.h"
 
-/* 
- * The Exclude function is used to register that an edge, (ta,tb), 
+/*
+ * The Exclude function is used to register that an edge, (ta,tb),
  * of the original tour has been excluded in a move. This is done by
- * setting the appropriate flag, OldPredExcluded or OldSucExcluded, 
+ * setting the appropriate flag, OldPredExcluded or OldSucExcluded,
  * for each of the two end nodes.
  */
 
-void Exclude(Node * ta, Node * tb)
+void Exclude(Node* ta, Node* tb)
 {
-    if (ta == tb->Pred || ta == tb->Suc)
-        return;
+    if (ta == tb->Pred || ta == tb->Suc) return;
     if (ta == tb->OldPred)
         tb->OldPredExcluded = 1;
     else if (ta == tb->OldSuc)

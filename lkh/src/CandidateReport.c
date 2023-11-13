@@ -9,8 +9,8 @@ void CandidateReport()
 {
     int Min = INT_MAX, Max = 0, Fixed = 0, Count;
     GainType Sum = 0, Cost = 0;
-    Node *N;
-    Candidate *NN;
+    Node* N;
+    Candidate* NN;
 
     N = FirstNode;
     do {
@@ -18,10 +18,8 @@ void CandidateReport()
         if (N->CandidateSet)
             for (NN = N->CandidateSet; NN->To; NN++)
                 Count++;
-        if (Count > Max)
-            Max = Count;
-        if (Count < Min)
-            Min = Count;
+        if (Count > Max) Max = Count;
+        if (Count < Min) Min = Count;
         Sum += Count;
         if (N->FixedTo1 && N->Id < N->FixedTo1->Id) {
             Fixed++;
@@ -31,10 +29,9 @@ void CandidateReport()
             Fixed++;
             Cost += Distance != Distance_1 ? Distance(N, N->FixedTo2) : 0;
         }
-    }
-    while ((N = N->Suc) != FirstNode);
-    printff("Cand.min = %d, Cand.avg = %0.1f, Cand.max = %d\n",
-            Min, (double) Sum / Dimension, Max);
+    } while ((N = N->Suc) != FirstNode);
+    printff("Cand.min = %d, Cand.avg = %0.1f, Cand.max = %d\n", Min,
+            (double)Sum / Dimension, Max);
     if (Fixed > 0)
         printff("Edges.fixed = %d [Cost = " GainFormat "]\n", Fixed, Cost);
 }

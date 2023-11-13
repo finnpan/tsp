@@ -3,12 +3,16 @@
 #include "Heap.h"
 #include "Sequence.h"
 
-/*      
- * The AllocateStructures function allocates all necessary 
+/*
+ * The AllocateStructures function allocates all necessary
  * structures except nodes and candidates.
  */
 
-#define Free(s) { free(s); s = 0; }
+#define Free(s)                                                                \
+    {                                                                          \
+        free(s);                                                               \
+        s = 0;                                                                 \
+    }
 
 void AllocateStructures()
 {
@@ -30,39 +34,38 @@ void AllocateStructures()
     Free(tSaved);
 
     HeapMake(Dimension);
-    BestTour = (int *) calloc(1 + Dimension, sizeof(int));
-    BetterTour = (int *) calloc(1 + Dimension, sizeof(int));
-    HTable = (HashTable *) malloc(sizeof(HashTable));
-    HashInitialize((HashTable *) HTable);
+    BestTour = (int*)calloc(1 + Dimension, sizeof(int));
+    BetterTour = (int*)calloc(1 + Dimension, sizeof(int));
+    HTable = (HashTable*)malloc(sizeof(HashTable));
+    HashInitialize((HashTable*)HTable);
     SRandom(Seed);
-    Rand = (unsigned *) malloc((Dimension + 1) * sizeof(unsigned));
+    Rand = (unsigned*)malloc((Dimension + 1) * sizeof(unsigned));
     for (i = 1; i <= Dimension; i++)
         Rand[i] = Random();
     SRandom(Seed);
     if (WeightType != EXPLICIT) {
-        for (i = 0; (1 << i) < (Dimension << 1); i++);
+        for (i = 0; (1 << i) < (Dimension << 1); i++)
+            ;
         i = 1 << i;
-        CacheSig = (int *) calloc(i, sizeof(int));
-        CacheVal = (int *) calloc(i, sizeof(int));
+        CacheSig = (int*)calloc(i, sizeof(int));
+        CacheVal = (int*)calloc(i, sizeof(int));
         CacheMask = i - 1;
     }
     AllocateSegments();
     K = MoveType;
-    if (SubsequentMoveType > K)
-        K = SubsequentMoveType;
-    T = (Node **) malloc((1 + 2 * K) * sizeof(Node *));
-    G = (GainType *) malloc(2 * K * sizeof(GainType));
-    t = (Node **) malloc(6 * K * sizeof(Node *));
-    tSaved = (Node **) malloc((1 + 2 * K) * sizeof(Node *));
-    p = (int *) malloc(6 * K * sizeof(int));
-    q = (int *) malloc(6 * K * sizeof(int));
-    incl = (int *) malloc(6 * K * sizeof(int));
-    cycle = (int *) malloc(6 * K * sizeof(int));
-    SwapStack =
-        (SwapRecord *) malloc((MaxSwaps + 6 * K) * sizeof(SwapRecord));
+    if (SubsequentMoveType > K) K = SubsequentMoveType;
+    T = (Node**)malloc((1 + 2 * K) * sizeof(Node*));
+    G = (GainType*)malloc(2 * K * sizeof(GainType));
+    t = (Node**)malloc(6 * K * sizeof(Node*));
+    tSaved = (Node**)malloc((1 + 2 * K) * sizeof(Node*));
+    p = (int*)malloc(6 * K * sizeof(int));
+    q = (int*)malloc(6 * K * sizeof(int));
+    incl = (int*)malloc(6 * K * sizeof(int));
+    cycle = (int*)malloc(6 * K * sizeof(int));
+    SwapStack = (SwapRecord*)malloc((MaxSwaps + 6 * K) * sizeof(SwapRecord));
 }
 
-/*      
+/*
  * The AllocateSegments function allocates the segments of the two-level tree.
  */
 
@@ -73,10 +76,10 @@ void AllocateSegments()
     int i;
 
     FreeSegments();
-    GroupSize = (int) sqrt((double) Dimension);
+    GroupSize = (int)sqrt((double)Dimension);
     Groups = 0;
     for (i = Dimension, SPrev = 0; i > 0; i -= GroupSize, SPrev = S) {
-        S = (Segment *) malloc(sizeof(Segment));
+        S = (Segment*)malloc(sizeof(Segment));
         S->Rank = ++Groups;
         if (!SPrev)
             FirstSegment = S;
@@ -87,7 +90,7 @@ void AllocateSegments()
     SGroupSize = Dimension;
     SGroups = 0;
     for (i = Groups, SSPrev = 0; i > 0; i -= SGroupSize, SSPrev = SS) {
-        SS = (SSegment *) malloc(sizeof(SSegment));
+        SS = (SSegment*)malloc(sizeof(SSegment));
         SS->Rank = ++SGroups;
         if (!SSPrev)
             FirstSSegment = SS;
