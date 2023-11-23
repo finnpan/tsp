@@ -1,6 +1,9 @@
-# tsp-heuristics
+# tsp
 
-In order to study LKH alogrithm, lots of irrelevant codes are removed.
-Now, lines of code are less 7000.
+GA with Edge Assembly Crossover is powerful to solve TSP.
+I am trying to rewrite some codes to improve readability, for example,
+using two-level-tree class to replace amounts of c-array.
 
-Code is copied and adapted from 'http://webhotel4.ruc.dk/~keld/research/LKH/'
+The codes of crossover are complicate, so it will take me more time to rewrite.
+In addition, I remove some features, such as: entropy of diversity preservation
+and Block2, because they are not the core of EAX and make rewriting more complicate.
