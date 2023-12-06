@@ -14,3 +14,4 @@ endif()
 
 add_subdirectory(eax)
 add_subdirectory(test)
+add_subdirectory(clk)
