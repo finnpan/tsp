@@ -162,8 +162,6 @@ static void
    look_ahead_noback (graph *G, distobj *D, adddel *E, CClk_flipper *F,
        int first, int last, int gain, edgelook *winner),
    turn (int n, aqueue *Q, CCptrworld *intptr_world),
-   kickturn (int n, aqueue *Q, distobj *D, graph *G, CClk_flipper *F,
-        CCptrworld *intptr_world),
    bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
         distobj *D, CCptrworld *intptr_world),
    first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1, int *t2),
@@ -718,6 +716,8 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
     int oldG, gain, tG, Gstar = 0, val, hit;
     int t3prev, t4next;
     edgelook *e, *f, *h, *list, *list2, *list3;
+
+    (void)t3prev;
 
     list = weird_look_ahead (G, D, F, len_t1_t2, t1, t2, edgelook_world);
     for (h = list; h; h = h->next) {
@@ -1427,23 +1427,6 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
 static void turn (int n, aqueue *Q, CCptrworld *intptr_world)
 {
     add_to_active_queue (n, Q, intptr_world);
-}
-
-static void kickturn (int n, aqueue *Q, CC_UNUSED distobj *D,
-        CC_UNUSED graph *G, CClk_flipper *F, CCptrworld *intptr_world)
-{
-    add_to_active_queue (n, Q, intptr_world);
-    {
-        int k;
-        k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, intptr_world);
-        k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, intptr_world);
-        k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, intptr_world);
-        k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, intptr_world);
-    }
 }
 
 static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,

@@ -10,8 +10,8 @@ set(source_files
     fmatch.c
     kdbuild.c kdnear.c kdspan.c kdtwoopt.c
     allocrus.c bgetopt.c  dheaps_i.c edgelen.c  edgemap.c  edgeutil.c
-    eunion.c   fastread.c getdata.c  safe_io.c  sortrus.c  subdiv.c
-    urandom.c  util.c     zeit.c     genhash.c  priority.c signal.c
+    fastread.c getdata.c  safe_io.c  sortrus.c
+    urandom.c  util.c     zeit.c
     linkern.c linkern_fixed.c linkern_path.c flip_two.c
 )
 

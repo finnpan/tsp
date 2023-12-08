@@ -399,45 +399,7 @@ int
 /*                                                                          */
 /****************************************************************************/
 
-typedef struct CCelist {
-    int  ecount;
-    int *ends;
-} CCelist;
-
-typedef struct CCelistl {
-    int  ecount;
-    int *ends;
-    int *len;
-} CCelistl;
-
-typedef struct CCelistw {
-    int     ecount;
-    int    *ends;
-    double *weight;
-} CCelistw;
-
-typedef struct CCelistlw {
-    int     ecount;
-    int    *ends;
-    int    *len;
-    double *weight;
-} CCelistlw;
-
-void
-    CCelist_init (CCelist *elist),
-    CCelistl_init (CCelistl *elist),
-    CCelistw_init (CCelistw *elist),
-    CCelistlw_init (CCelistlw *elist),
-    CCelist_free (CCelist *elist),
-    CCelistl_free (CCelistl *elist),
-    CCelistw_free (CCelistw *elist),
-    CCelistlw_free (CCelistlw *elist);
-
 int
-    CCelist_alloc (CCelist *elist, int ecount),
-    CCelistl_alloc (CCelistl *elist, int ecount),
-    CCelistw_alloc (CCelistw *elist, int ecount),
-    CCelistlw_alloc (CCelistlw *elist, int ecount),
     CCutil_edge_to_cycle (int ncount, int *elist, int *yesno, int *cyc);
 
 
@@ -609,17 +571,6 @@ void
     CCutil_edgehash_free (CCutil_edgehash *h);
 
 
-/****************************************************************************/
-/*                                                                          */
-/*                             eunion.c                                     */
-/*                                                                          */
-/****************************************************************************/
-
-int
-    CCutil_edge_file_union (int ncount, int nfiles, char **flist, int *ecount,
-        int **elist, int **elen, int *foundtour, double *besttourlen);
-
-
 
 /****************************************************************************/
 /*                                                                          */
@@ -630,65 +581,6 @@ int
 
 int
     CCutil_readint (FILE *f);
-
-
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             genhash.c                                    */
-/*                                                                          */
-/****************************************************************************/
-
-struct CCgenhash_elem;
-
-typedef struct CCgenhash {
-    int                     nelem;
-    int                     maxelem;
-    int                     size;
-    int                   (*hcmp) (void *key1, void *key2, void *u_data);
-    unsigned int          (*hfunc) (void *key, void *u_data);
-    void                   *u_data;
-    double                  maxdensity;
-    double                  lowdensity;
-    CCptrworld              elem_world;
-    struct CCgenhash_elem **table;
-} CCgenhash;
-
-typedef struct CCgenhash_iter {
-    int                    i;
-    struct CCgenhash_elem *next;
-} CCgenhash_iter;
-
-
-int
-    CCutil_genhash_init (CCgenhash *h, int size, int (*hcmp) (void *key1,
-        void *key2, void *u_data), unsigned int (*hfunc) (void *key,
-        void *u_data), void *u_data, double maxdensity, double lowdensity),
-    CCutil_genhash_insert (CCgenhash *h, void *key, void *data),
-    CCutil_genhash_insert_h (CCgenhash *h, unsigned int hashval, void *key,
-        void *data),
-    CCutil_genhash_replace (CCgenhash *h, void *key, void *data),
-    CCutil_genhash_replace_h (CCgenhash *h, unsigned int hashval, void *key,
-        void *data),
-    CCutil_genhash_delete (CCgenhash *h, void *key),
-    CCutil_genhash_delete_h (CCgenhash *h, unsigned int hashval, void *key);
-
-unsigned int
-    CCutil_genhash_hash (CCgenhash *h, void *key);
-
-void
-   *CCutil_genhash_lookup (CCgenhash *h, void *key),
-   *CCutil_genhash_lookup_h (CCgenhash *h, unsigned int hashval, void *key),
-   *CCutil_genhash_next (CCgenhash *h, CCgenhash_iter *iter, void **key,
-        int *keysize);
-
-void
-    CCutil_genhash_u_data (CCgenhash *h, void *u_data),
-    CCutil_genhash_free (CCgenhash *h, void (*freefunc)(void *key, void *data,
-        void *u_data)),
-    CCutil_genhash_start (CCgenhash *h, CCgenhash_iter *iter);
 
 
 
@@ -765,36 +657,6 @@ int
 
 /****************************************************************************/
 /*                                                                          */
-/*                             priority.c                                   */
-/*                                                                          */
-/****************************************************************************/
-
-typedef struct CCpriority {
-    CCdheap   heap;
-    union CCpri_data {
-        void *data;
-        int  next;
-    } *pri_info;
-    int     space;
-    int     freelist;
-} CCpriority;
-
-
-void
-    CCutil_priority_free (CCpriority *pri),
-    CCutil_priority_delete (CCpriority *pri, int handle),
-    CCutil_priority_changekey (CCpriority *pri, int handle, double newkey),
-   *CCutil_priority_findmin (CCpriority *pri, double *keyval),
-   *CCutil_priority_deletemin (CCpriority *pri, double *keyval);
-
-int
-    CCutil_priority_init (CCpriority *pri, int k),
-    CCutil_priority_insert (CCpriority *pri, void *data, double keyval);
-
-
-
-/****************************************************************************/
-/*                                                                          */
 /*                             safe_io.c                                    */
 /*                                                                          */
 /****************************************************************************/
@@ -853,72 +715,6 @@ void
 
 
 
-
-/****************************************************************************/
-/*                                                                          */
-/*                             signal.c                                     */
-/*                                                                          */
-/****************************************************************************/
-
-#define CCutil_SIGHUP                1  /* HangUp */
-#define CCutil_SIGINT                2  /* Interrupt */
-#define CCutil_SIGQUIT               3  /* Quit */
-#define CCutil_SIGILL                4  /* Illegal instruction */
-#define CCutil_SIGTRAP               5  /* Trace trap */
-#define CCutil_SIGABRT               6  /* Abort */
-#define CCutil_SIGEMT                7  /* Emulator trap */
-#define CCutil_SIGFPE                8  /* Floating point exception */
-#define CCutil_SIGKILL               9  /* Kill process */
-#define CCutil_SIGBUS               10  /* Bus error */
-#define CCutil_SIGSEGV              11  /* Segmentation fault */
-#define CCutil_SIGSYS               12  /* Illegal argument to system call */
-#define CCutil_SIGPIPE              13  /* Pipe */
-#define CCutil_SIGALRM              14  /* Alarm */
-#define CCutil_SIGTERM              15  /* Terminate */
-#define CCutil_SIGUSR1              16  /* User signal 1 */
-#define CCutil_SIGUSR2              17  /* User signal 2 */
-#define CCutil_SIGCHLD              18  /* Child condition change */
-#define CCutil_SIGPWR               19  /* Power fail */
-#define CCutil_SIGWINCH             20  /* Window size changes */
-#define CCutil_SIGURG               21  /* Urgent condition on IO channel*/
-#define CCutil_SIGIO                22  /* IO possible */
-#define CCutil_SIGSTOP              23  /* Stop */
-#define CCutil_SIGTSTP              24  /* Tty stop */
-#define CCutil_SIGCONT              25  /* Continue */
-#define CCutil_SIGTTIN              26  /* Tty background read */
-#define CCutil_SIGTTOU              27  /* Tty background write */
-#define CCutil_SIGVTALRM            28  /* Virtual timer alarm */
-#define CCutil_SIGPROF              29  /* Profiling timer alarm */
-#define CCutil_SIGXCPU              30  /* CPU limit exceeded */
-#define CCutil_SIGXFSZ              31  /* File size limit exceeded */
-#define CCutil_SIGSTKFLT            32  /* Stack fault */
-#define CCutil_SIGIOT               33  /* IOT instruction */
-#define CCutil_SIGPOLL              34  /* Pollable event */
-#define CCutil_SIGMSG               35  /* Message available */
-#define CCutil_SIGDANGER            36  /* System crash imminent */
-#define CCutil_SIGMIGRATE           37  /* Migrate process */
-#define CCutil_SIGPRE               38  /* Programming exception */
-#define CCutil_SIGVIRT              39  /* Second virtual time alarm */
-#define CCutil_MAXSIG               39
-
-
-typedef void (*CCutil_handler)(int signum);
-
-int
-    CCutil_signal_handler (int ccsignum, CCutil_handler handler),
-    CCutil_signal_default (int ccsignum),
-    CCutil_signal_ignore (int ccsignum),
-    CCutil_sig_to_ccsig (int signum);
-
-void
-    CCutil_signal_init (void),
-    CCutil_handler_fatal (int signum),
-    CCutil_handler_warn (int signum),
-    CCutil_handler_exit (int signum);
-
-
-
-
 /****************************************************************************/
 /*                                                                          */
 /*                             sortrus.c                                    */
@@ -938,48 +734,6 @@ char
         int valsize);
 
 
-/****************************************************************************/
-/*                                                                          */
-/*                             subdiv.c                                     */
-/*                                                                          */
-/****************************************************************************/
-
-#define CC_SUBDIV_PORT  ((unsigned short) 32141)
-#define CC_SUBGATE_PORT ((unsigned short) 32143)
-#define CCutil_FILE_NAME_LEN  (128)
-
-typedef struct CCsubdiv {
-    double xrange[2];
-    double yrange[2];
-    int    cnt;
-    int    id;
-    double bound;
-    int    status;
-} CCsubdiv;
-
-typedef struct CCsubdiv_lkh {
-    int id;
-    int cnt;
-    int start;
-    double origlen;
-    double newlen;
-    int    status;
-} CCsubdiv_lkh;
-
-
-int
-    CCutil_karp_partition (int ncount, CCdatagroup *dat, int partsize,
-        int *p_scount, CCsubdiv **p_slist, int ***partlist,
-        CCrandstate *rstate),
-    CCutil_write_subdivision_index (char *problabel, int ncount, int scount,
-        CCsubdiv *slist),
-    CCutil_read_subdivision_index (char *index_name, char **p_problabel,
-        int *p_ncount, int *p_scount, CCsubdiv **p_slist),
-    CCutil_write_subdivision_lkh_index (char *problabel, int ncount,
-        int scount, CCsubdiv_lkh *slist, double tourlen),
-    CCutil_read_subdivision_lkh_index (char *index_name, char **p_problabel,
-        int *p_ncount, int *p_scount, CCsubdiv_lkh **p_slist,
-        double *p_tourlen);
 
 
 /****************************************************************************/

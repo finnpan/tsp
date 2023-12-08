@@ -1064,6 +1064,8 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
     int t3prev, t4next;
     edgelook *e, *f, *h, *list, *list2, *list3;
 
+    (void)t3prev;
+
     list = weird_look_ahead (G, D, F, len_t1_t2, t1, t2, edgelook_world);
     for (h = list; h; h = h->next) {
         t3 = h->other;
