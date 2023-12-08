@@ -114,7 +114,7 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "machdefs.h"
+#include "config.h"
 #include "util.h"
 
 static double
@@ -670,7 +670,7 @@ static int rhmap1_edgelen (int i, int j, CCdatagroup *dat)
     int dist_22 = dat->rhdat.dist_22;
 
     if (v1 == (char *) NULL || v2 == (char *) NULL) return 0;
-    
+
     for (n=0; n<rhlength; n++) {
         if (v1[n] == 2) {
             if (v2[n] == 0) sum += dist_02;
@@ -697,7 +697,7 @@ static int rhmap2_edgelen (int i, int j, CCdatagroup *dat)
     double p = dat->rhdat.p;
 
     if (v1 == (char *) NULL || v2 == (char *) NULL) return 0;
-    
+
     for (n=0; n<rhlength; n++) {
         if (v1[n] == 0) {
             if (v2[n] == 1) sum += 1;
@@ -740,7 +740,7 @@ static int rhmap3_edgelen (int i, int j, CCdatagroup *dat)
         first = second;
         second = (char *) NULL;
     }
-    
+
     if (second == (char *) NULL) {
         for (xindex = 0; xindex < len; xindex++) {
             if (first[xindex] == 1) a++;
@@ -799,7 +799,7 @@ static int rhmap4_edgelen (int i, int j, CCdatagroup *dat)
         first = second;
         second = (char *) NULL;
     }
-    
+
     if (second == (char *) NULL) {
         for (xindex = 0; xindex < len; xindex++) {
             if (first[xindex] == 1) a++;
@@ -845,7 +845,7 @@ static int rhmap5_edgelen (int i, int j, CCdatagroup *dat)
     int cnt = 0;
 
     if (v1 == (char *) NULL || v2 == (char *) NULL) return 0;
-    
+
     for (n=0; n<rhlength; n++) {
         if (v1[n] != 2 && v2[n] != 2) {
             cnt++;

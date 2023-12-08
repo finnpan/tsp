@@ -1,16 +1,14 @@
 cmake_minimum_required(VERSION 3.15)
 project(clk VERSION 0.0.1 LANGUAGES C)
 
-set(FLAGS_COMMON "-Wall -Wextra")
+set(FLAGS_COMMON "-Wall -Werror -Wextra")
 set(CMAKE_C_FLAGS "${FLAGS_COMMON} -O3 -g0")
 set(CMAKE_C_FLAGS_DEBUG "${FLAGS_COMMON} -O0 -g2 -ggdb")
 
 set(source_files
     kdbuild.c kdnear.c kdspan.c kdtwoopt.c
-    allocrus.c bgetopt.c  dheaps_i.c edgelen.c  edgemap.c  edgeutil.c
-    fastread.c getdata.c  safe_io.c  sortrus.c
-    urandom.c  util.c     zeit.c
-    linkern.c flip_two.c
+    allocrus.c dheaps_i.c edgelen.c
+    util.c linkern.c flip_two.c
 )
 
 set(library_name clk)

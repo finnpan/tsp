@@ -79,14 +79,14 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "machdefs.h"
+#include "config.h"
 #include "util.h"
 
 typedef struct CCbigchunk {
     char space[CC_BIGCHUNK];
     CCbigchunkptr ptr;
 } CCbigchunk;
-    
+
 void *CCutil_allocrus (size_t size)
 {
     void *mem = (void *) NULL;
@@ -176,7 +176,7 @@ void CCutil_bigchunkfree (CCbigchunkptr *bp)
 {
     /* This copy is necessary since CC_FREE zeros its first argument */
     CCbigchunk *p = bp->this_chunk;
-    
+
     CC_FREE (p, CCbigchunk);
 }
 

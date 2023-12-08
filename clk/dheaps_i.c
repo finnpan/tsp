@@ -71,7 +71,7 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "machdefs.h"
+#include "config.h"
 #include "util.h"
 
 #define HEAP_D 3

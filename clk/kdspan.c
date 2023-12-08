@@ -78,7 +78,7 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "machdefs.h"
+#include "config.h"
 #include "kdtree.h"
 #include "util.h"
 

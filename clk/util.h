@@ -98,7 +98,7 @@
 #ifndef __UTIL_H
 #define __UTIL_H
 
-#include "machdefs.h"
+#include "config.h"
 
 #define CC_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 
@@ -140,18 +140,13 @@ typedef struct CC_SFILE {
     unsigned char buffer[CC_SBUFFER_SIZE];
 } CC_SFILE;
 
-#ifdef CC_NETREADY
-typedef struct CC_SPORT {
-    unsigned short port;
-    int t;
-} CC_SPORT;
-#endif /* CC_NETREADY */
-
 typedef struct CCrandstate {
     int a;
     int b;
     int arr[55];
 } CCrandstate;
+
+
 
 /****************************************************************************/
 /*                                                                          */
@@ -347,23 +342,6 @@ CCbigchunkptr
 
 
 
-
-/****************************************************************************/
-/*                                                                          */
-/*                             bgetopt.c                                    */
-/*                                                                          */
-/****************************************************************************/
-
-
-int
-    CCutil_bix_getopt (int argc, char **argv, const char *def, int *p_optind,
-        char **p_optarg);
-
-
-#define CC_BIX_GETOPT_UNKNOWN -3038
-
-
-
 /****************************************************************************/
 /*                                                                          */
 /*                             dheaps_i.c                                   */
@@ -390,18 +368,6 @@ int
     CCutil_dheap_findmin (CCdheap *h),
     CCutil_dheap_deletemin (CCdheap *h),
     CCutil_dheap_insert (CCdheap *h, int i);
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             edgeutil.c                                   */
-/*                                                                          */
-/****************************************************************************/
-
-int
-    CCutil_edge_to_cycle (int ncount, int *elist, int *yesno, int *cyc);
-
 
 
 
@@ -433,7 +399,7 @@ typedef struct CCdata_rhvector {
     int dist_02;
     int dist_12;
     int dist_22;
-    double p;   
+    double p;
     int rhlength;
     char *space;
     char **vectors;
@@ -517,10 +483,6 @@ void
 #define CC_MANNORM       (18 |   CC_KD_NORM_TYPE |     CC_D2_NORM_SIZE)
 #define CC_SUBDIVISION   (99 | CC_JUNK_NORM_TYPE |                   0)
 
-#define CC_GEOGRAPHIC_SCALE (6378.388 * 3.14 / 180.0)    /*  see edgelen.c  */
-#define CC_GEOM_SCALE (6378388.0 * 3.14 / 180.0)         /*  see edgelen.c  */
-#define CC_ATT_SCALE (.31622)                            /*  sqrt(1/10)     */
-
 /* Distances CC_RHMAP1 through CC_RHMAP5 are for an application to          */
 /* radiation hybrid mapping in genetics, explained in: Agarwala R,          */
 /* Applegate DL,  Maglott D, Schuler GD, Schaffer AA: A Fast and Scalable   */
@@ -539,208 +501,16 @@ void
 
 /****************************************************************************/
 /*                                                                          */
-/*                             edgemap.c                                    */
-/*                                                                          */
-/****************************************************************************/
-
-typedef struct CCutil_edgeinf {
-    int                   ends[2];
-    int                   val;
-    struct CCutil_edgeinf *next;
-} CCutil_edgeinf;
-
-typedef struct CCutil_edgehash {
-    CCutil_edgeinf **table;
-    CCptrworld      edgeinf_world;
-    unsigned int    size;
-    unsigned int    mult;
-} CCutil_edgehash;
-
-
-int
-    CCutil_edgehash_init (CCutil_edgehash *h, int size),
-    CCutil_edgehash_add (CCutil_edgehash *h, int end1, int end2, int val),
-    CCutil_edgehash_set (CCutil_edgehash *h, int end1, int end2, int val),
-    CCutil_edgehash_del (CCutil_edgehash *h, int end1, int end2),
-    CCutil_edgehash_find (CCutil_edgehash *h, int end1, int end2, int *val),
-    CCutil_edgehash_getall (CCutil_edgehash *h, int *ecount, int **elist,
-        int **elen);
-
-void
-    CCutil_edgehash_delall (CCutil_edgehash *h),
-    CCutil_edgehash_free (CCutil_edgehash *h);
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             fastread.c                                   */
-/*                                                                          */
-/****************************************************************************/
-
-
-int
-    CCutil_readint (FILE *f);
-
-
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             getdata.c                                    */
-/*                                                                          */
-/****************************************************************************/
-
-#define  CC_MASTER_NO_DAT  100
-#define  CC_MASTER_DAT     101
-
-void
-    CCutil_cycle_len (int ncount, CCdatagroup *dat, int *cycle, double *len);
-
-int
-    CCutil_getdata (char *datname, int binary_in, int innorm, int *ncount,
-        CCdatagroup *dat, int gridsize, int allow_dups, CCrandstate *rstate),
-    CCutil_writedata (char *datname, int binary_out, int ncount,
-        CCdatagroup *dat),
-    CCutil_putmaster (char *mastername, int ncount, CCdatagroup *dat,
-        int *perm),
-    CCutil_writemaster (CC_SFILE *out, int ncount, CCdatagroup *dat,
-        int *perm),
-    CCutil_getmaster (char *mastername, int *ncount, CCdatagroup *dat,
-        int **perm),
-    CCutil_readmaster (CC_SFILE *in, int *ncount, CCdatagroup *dat,
-        int **perm),
-    CCutil_getnodeweights (char *weightname, int ncount, int weight_limit,
-        double **wcoord, CCrandstate *rstate),
-    CCutil_gettsplib (char *datname, int *ncount, CCdatagroup *dat),
-    CCutil_writetsplib (const char *fname, int ncount, CCdatagroup *dat),
-    CCutil_datagroup_perm (int ncount, CCdatagroup *dat, int *perm),
-    CCutil_copy_datagroup (int ncount, CCdatagroup *indat, CCdatagroup *outdat),
-    CCutil_getedgelist (int ncount, char *fname, int *ecount, int **elist,
-        int **elen, int binary_in),
-    CCutil_getedgelist_n (int *ncount, char *fname, int *ecount, int **elist,
-        int **elen, int binary_in),
-    CCutil_genedgelist (int ncount, int ecount, int **elist, int **elen,
-        CCdatagroup *dat, int maxlen, CCrandstate *rstate),
-    CCutil_getcycle_tsplib (int ncount, char *cyclename, int *outcycle),
-    CCutil_getcycle_edgelist (int ncount, char *cyclename, int *outcycle,
-        int binary_in),
-    CCutil_getcycle (int ncount, char *cyclename, int *outcycle,
-        int binary_in),
-    CCutil_getedges_double (int *ncount, char *fname, int *ecount, int **elist,
-        double **elen, int binary_in),
-    CCutil_writeedges (int ncount, char *outedgename, int ecount, int *elist,
-        CCdatagroup *dat, int binary_out),
-    CCutil_writecycle_edgelist (int ncount, char *outedgename, int *cycle,
-        CCdatagroup *dat, int binary_out),
-    CCutil_writecycle (int ncount, char *outcyclename, int *cycle,
-        int binary_out),
-    CCutil_writeedges_int (int ncount, char *outedgename, int ecount,
-        int *elist, int *elen, int binary_out),
-    CCutil_writeedges_double (int ncount, char *outedgename, int ecount,
-        int *elist, double *elen, int binary_out),
-    CCutil_tri2dat (int ncount, int *elen, CCdatagroup *dat),
-    CCutil_graph2dat_matrix (int ncount, int ecount, int *elist, int *elen,
-        int defaultlen, CCdatagroup *dat),
-    CCutil_graph2dat_sparse (int ncount, int ecount, int *elist, int *elen,
-        int defaultlen, CCdatagroup *dat),
-    CCutil_get_sparse_dat_edges (int ncount, CCdatagroup *dat, int *ecount,
-        int **elist, int **elen),
-    CCutil_sparse_strip_edges (CCdatagroup *dat, int in_ecount, int *in_elist,
-        int *in_elen, int *ecount, int **elist, int **elen),
-    CCutil_sparse_real_tour (int ncount, CCdatagroup *dat, int *cyc,
-        int *yesno);
-
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             safe_io.c                                    */
-/*                                                                          */
-/****************************************************************************/
-
-
-CC_SFILE
-    *CCutil_sopen (const char *f, const char *s),
-    *CCutil_sdopen (int d, const char *s);
-
-int
-    CCutil_swrite (CC_SFILE *f, char *buf, int size),
-    CCutil_swrite_bits (CC_SFILE *f, int x, int xbits),
-    CCutil_swrite_ubits (CC_SFILE *f, unsigned int x, int xbits),
-    CCutil_swrite_char (CC_SFILE *f, char x),
-    CCutil_swrite_string (CC_SFILE *f, const char *x),
-    CCutil_swrite_short (CC_SFILE *f, short x),
-    CCutil_swrite_ushort (CC_SFILE *f, unsigned short x),
-    CCutil_swrite_int (CC_SFILE *f, int x),
-    CCutil_swrite_uint (CC_SFILE *f, unsigned int x),
-    CCutil_swrite_double (CC_SFILE *f, double x),
-    CCutil_sread (CC_SFILE *f, char *buf, int size),
-    CCutil_sread_bits (CC_SFILE *f, int *x, int xbits),
-    CCutil_sread_ubits (CC_SFILE *f, unsigned int *x, int xbits),
-    CCutil_sread_char (CC_SFILE *f, char *x),
-    CCutil_sread_string (CC_SFILE *f, char *x, int maxlen),
-    CCutil_sread_short (CC_SFILE *f, short *x),
-    CCutil_sread_ushort (CC_SFILE *f, unsigned short *x),
-    CCutil_sread_short_r (CC_SFILE *f, short *x),
-    CCutil_sread_int (CC_SFILE *f, int *x),
-    CCutil_sread_uint (CC_SFILE *f, unsigned int *x),
-    CCutil_sread_int_r (CC_SFILE *f, int *x),
-    CCutil_sread_double (CC_SFILE *f, double *x),
-    CCutil_sread_double_r (CC_SFILE *f, double *x),
-    CCutil_sflush (CC_SFILE *f),
-    CCutil_stell (CC_SFILE *f),
-    CCutil_sseek (CC_SFILE *f, int offset),
-    CCutil_srewind (CC_SFILE *f),
-    CCutil_sclose (CC_SFILE *f),
-    CCutil_sbits (unsigned int x),
-    CCutil_sdelete_file (const char *fname),
-    CCutil_sdelete_file_backup (const char *fname);
-
-#ifdef CC_NETREADY
-CC_SFILE
-   *CCutil_snet_open (const char *hname, unsigned short p),
-   *CCutil_snet_receive (CC_SPORT *s);
-
-CC_SPORT
-   *CCutil_snet_listen (unsigned short p);
-
-void
-    CCutil_snet_unlisten (CC_SPORT *s);
-
-#endif /* CC_NETREADY */
-
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             sortrus.c                                    */
+/*                             util.c                                    */
 /*                                                                          */
 /****************************************************************************/
 
 
 void
-    CCutil_int_array_quicksort (int *len, int n),
     CCutil_int_perm_quicksort (int *perm, int *len, int n),
     CCutil_double_perm_quicksort (int *perm, double *len, int n),
     CCutil_rselect (int *arr, int l, int r, int m, double *coord,
         CCrandstate *rstate);
-
-char
-    *CCutil_linked_radixsort (char *data, char *datanext, char *dataval,
-        int valsize);
-
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             urandom.c                                    */
-/*                                                                          */
-/****************************************************************************/
 
 /* since urandom's generator does everything modulo CC_PRANDMAX, if two
  * seeds are congruent mod x and x|CC_PRANDMAX, then the resulting numbers
@@ -758,73 +528,21 @@ void
 int
    CCutil_lprand (CCrandstate *r);
 
-double
-   CCutil_normrand (CCrandstate *r);
-
-
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                             util.c                                       */
-/*                                                                          */
-/****************************************************************************/
-
-
-char
-   *CCutil_strchr (char *s, int c),
-   *CCutil_strrchr (char *s, int c),
-   *CCutil_strdup (const char *s),
-   *CCutil_strdup2 (const char *s);
-
-const char
-   *CCutil_strchr_c (const char *s, int c),
-   *CCutil_strrchr_c (const char *s, int c);
-
-unsigned int
-    CCutil_nextprime (unsigned int x);
+double CCutil_zeit (void);
 
 int
-    CCutil_our_gcd (int a, int b),
-    CCutil_our_lcm (int a, int b),
-    CCutil_print_command (int ac, char **av);
-
-void
-    CCutil_readstr (FILE *f, char *s, int len),
-    CCutil_printlabel (void);
+    CCutil_bix_getopt (int argc, char **argv, const char *def, int *p_optind,
+        char **p_optarg);
 
 
+#define CC_BIX_GETOPT_UNKNOWN -3038
 
 
+int
+    CCutil_edge_to_cycle (int ncount, int *elist, int *yesno, int *cyc);
 
-/****************************************************************************/
-/*                                                                          */
-/*                             zeit.c                                       */
-/*                                                                          */
-/****************************************************************************/
-
-typedef struct CCutil_timer {
-    double  szeit;
-    double  cum_zeit;
-    char    name[40];
-    int     count;
-} CCutil_timer;
-
-
-double
-    CCutil_zeit (void),
-    CCutil_real_zeit (void),
-    CCutil_stop_timer (CCutil_timer *t, int printit),
-    CCutil_total_timer (CCutil_timer *t, int printit);
-
-
-void
-    CCutil_init_timer (CCutil_timer *t, const char *name),
-    CCutil_start_timer (CCutil_timer *t),
-    CCutil_suspend_timer (CCutil_timer *t),
-    CCutil_resume_timer (CCutil_timer *t);
-
+int
+    CCutil_gettsplib (char *datname, int *ncount, CCdatagroup *dat);
 
 
 #endif /* __UTIL_H */

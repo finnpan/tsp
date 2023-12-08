@@ -63,7 +63,7 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "machdefs.h"
+#include "config.h"
 #include "util.h"
 #include "linkern.h"
 
@@ -76,7 +76,7 @@
 /****************************************************************************/
 
 #define GROUPSIZE_FACTOR 0.50
-#define SEGMENT_SPLIT_CUTOFF 0.30 
+#define SEGMENT_SPLIT_CUTOFF 0.30
 
 
 static void
@@ -106,7 +106,7 @@ int CClinkern_flipper_init (CClk_flipper *F, int ncount, int *cyc)
     CClk_parentnode *p;
 
     init_flipper (F);
-    rval = build_flipper (F, ncount); 
+    rval = build_flipper (F, ncount);
     if (rval) {
         fprintf (stderr, "build_flipper failed\n"); goto CLEANUP;
     }
@@ -115,7 +115,7 @@ int CClinkern_flipper_init (CClk_flipper *F, int ncount, int *cyc)
     i = 0;
     j = 2 * F->groupsize;
     while (remain >= j) {
-        F->parents[i].size = F->groupsize;  
+        F->parents[i].size = F->groupsize;
         remain -= F->groupsize;
         i++;
     }
@@ -155,7 +155,7 @@ int CClinkern_flipper_init (CClk_flipper *F, int ncount, int *cyc)
     F->parents[F->nsegments - 1].adj[1] = &(F->parents[0]);
 
 CLEANUP:
-   
+
     if (rval) {
         free_flipper (F);
     }
@@ -221,7 +221,7 @@ void CClinkern_flipper_flip (CClk_flipper *F, int x, int y)
                     side = xc->parent->id - yc->parent->id;
                 else
                     side = yc->parent->id - xc->parent->id;
-                if (side < 0) 
+                if (side < 0)
                     side += F->nsegments;
                 if (side < F->nsegments / 2) {
                     consecutive_segment_flip (F, xc->parent, yc->parent);
@@ -282,14 +282,14 @@ static void same_segment_flip (CClk_flipper *F, CClk_childnode *a,
         CClk_childnode *b)
 {
     CClk_parentnode *parent = a->parent;
-    int dir = ((F->reversed)^(parent->rev)); 
+    int dir = ((F->reversed)^(parent->rev));
     CClk_childnode *aprev = a->adj[dir];
     CClk_childnode *bnext = b->adj[!dir];
     CClk_childnode *c, *cnext;
 
     if ((dir && a->id - b->id > F->split_cutoff) ||
        (!dir && b->id - a->id > F->split_cutoff)) {
-        if (aprev->parent == parent) 
+        if (aprev->parent == parent)
             segment_split (F, parent, aprev, a, 1);
         if (bnext->parent == parent)
             segment_split (F, parent, b, bnext, 2);
@@ -367,7 +367,7 @@ static void consecutive_segment_flip (CClk_flipper *F, CClk_parentnode *a,
         childnext->adj[!childnext->parent->rev] = achild;
         bchild->adj[b->rev] = childprev;
         achild->adj[!a->rev] = childnext;
-  
+
         aprev->adj[0] = b;
         bnext->adj[1] = a;
         c = b->adj[1];
@@ -545,13 +545,13 @@ int CClinkern_flipper_sequence (CClk_flipper *F, int x, int y, int z)
         if (pa == pc) {
             if ((F->reversed)^(pa->rev)) {
                 if (a->id >= b->id) {
-                    return (b->id >= c->id || c->id >= a->id); 
+                    return (b->id >= c->id || c->id >= a->id);
                 } else {
                     return (b->id >= c->id && c->id >= a->id);
                 }
             } else {
                 if (a->id <= b->id) {
-                    return (b->id <= c->id || c->id <= a->id); 
+                    return (b->id <= c->id || c->id <= a->id);
                 } else {
                     return (b->id <= c->id && c->id <= a->id);
                 }
@@ -578,13 +578,13 @@ int CClinkern_flipper_sequence (CClk_flipper *F, int x, int y, int z)
     } else {
         if (F->reversed) {
             if (pa->id >= pb->id) {
-                return (pb->id >= pc->id || pc->id >= pa->id); 
+                return (pb->id >= pc->id || pc->id >= pa->id);
             } else {
                 return (pb->id >= pc->id && pc->id >= pa->id);
             }
         } else {
             if (pa->id <= pb->id) {
-                return (pb->id <= pc->id || pc->id <= pa->id); 
+                return (pb->id <= pc->id || pc->id <= pa->id);
             } else {
                 return (pb->id <= pc->id && pc->id <= pa->id);
             }
@@ -625,7 +625,7 @@ static int build_flipper (CClk_flipper *Fl, int ncount)
     Fl->split_cutoff = Fl->groupsize * SEGMENT_SPLIT_CUTOFF;
 
     Fl->parents = CC_SAFE_MALLOC (Fl->nsegments, CClk_parentnode);
-    Fl->children = CC_SAFE_MALLOC (ncount + 1, CClk_childnode); 
+    Fl->children = CC_SAFE_MALLOC (ncount + 1, CClk_childnode);
                  /* The +1 will stop a purify burp later */
     if (Fl->parents  == (CClk_parentnode *) NULL ||
         Fl->children == (CClk_childnode *) NULL) {

@@ -59,7 +59,7 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "machdefs.h"
+#include "config.h"
 #include "util.h"
 #include "kdtree.h"
 
@@ -98,7 +98,7 @@ int CCkdtree_build (CCkdtree *intree, int ncount, CCdatagroup *dat,
 
     CCptrworld_init (&intree->kdnode_world);
     CCptrworld_init (&intree->kdbnds_world);
-    
+
     if (wcoord != (double *) NULL) {
         for (i = 0; i < ncount; i++) {
             if (wcoord[i] < -0.00000001) {
@@ -148,7 +148,7 @@ void CCkdtree_free (CCkdtree *kt)
         CC_FREE (kt->bucketptr, CCkdnode *);
     kdtree_free_work (kt->root, &kt->kdnode_world, &kt->kdbnds_world);
     kt->root = (CCkdnode *) NULL;
-    
+
     kdtree_free_world (&kt->kdnode_world, &kt->kdbnds_world);
 }
 

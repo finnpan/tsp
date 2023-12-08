@@ -115,7 +115,7 @@
 /****************************************************************************/
 
 
-#include "machdefs.h"
+#include "config.h"
 #include "kdtree.h"
 #include "util.h"
 
@@ -204,7 +204,7 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
     CCptrworld intptr_world;
 
     CCptrworld_init (&intptr_world);
-    
+
     if (wcoord != (double *) NULL) {
         for (i = 0; i < ncount; i++) {
             if (wcoord[i] < -0.00000001) {
@@ -287,7 +287,7 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
             }
         }
     }
-  
+
     if (!silent) {
         printf (" %d edges\n", ntotal); fflush (stdout);
     }
