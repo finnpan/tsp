@@ -428,7 +428,11 @@ static CC_SFILE *sopen_write (const char *f)
         }
     }
     if (s) {
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wstringop-truncation"
         strncpy (s->fname, fbuf, sizeof (s->fname));
+        #pragma GCC diagnostic pop
+
         s->fname[sizeof (s->fname)-1] = '\0';
     }
     return s;

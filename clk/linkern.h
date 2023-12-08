@@ -30,13 +30,7 @@ int
         int *elist, int stallcount, int repeatcount, int *incycle,
         int *outcycle, double *val, int silent, double time_bound,
         double length_bound, char *saveit_name, int kicktype,
-        CCrandstate *rstate),
-    CClinkern_path (int ncount, CCdatagroup *dat, int ecount,
-        int *elist, int nkicks, int *inpath, int *outpath, double *val,
-        int silent, CCrandstate *rstate),
-    CClinkern_fixed (int ncount, CCdatagroup *dat, int ecount, int *elist,
-        int nkicks, int *incycle, int *outcycle, double *val, int fcount,
-        int *flist, int silent, CCrandstate *rstate);
+        CCrandstate *rstate);
 
 #endif  /* __LINKERN_H */
 

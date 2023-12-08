@@ -31,7 +31,6 @@
 #include "linkern.h"
 #include "util.h"
 #include "kdtree.h"
-#include "edgegen.h"
 
 #define BIGDOUBLE (1e30)
 
@@ -173,18 +172,7 @@ int main (int ac, char **av)
         printf ("Read good-edge file: %d edges\n", tempcount);
         fflush (stdout);
     } else if (edgegenfname) {
-        CCedgegengroup plan;
-        if (CCedgegen_read (edgegenfname, &plan)) {
-            fprintf (stderr, "CCedgegen_read failed\n");
-            rval = 1;
-            goto CLEANUP;
-        }
-        if (CCedgegen_edges (&plan, ncount, &dat, (double *) NULL, &tempcount,
-                     &templist, 0, &rstate)) {
-            fprintf (stderr, "CCedgegen_edges failed\n");
-            rval = 1;
-            goto CLEANUP;
-        }
+        assert(0);
     }
 
     if ((norm & CC_NORM_BITS) == CC_KD_NORM_TYPE) {
@@ -274,111 +262,18 @@ int main (int ac, char **av)
             CCkdtree_free (&localkt);
         }
     } else if ((norm & CC_NORM_BITS) == CC_X_NORM_TYPE) {
-        double xzeit = CCutil_zeit ();
         if (!goodfname && !edgegenfname) {
-            if (nearnum) {
-                if (CCedgegen_x_k_nearest (ncount, nearnum, &dat,
-                        (double *) NULL, 1, &tempcount, &templist,
-                        run_silently)) {
-                    fprintf (stderr, "CCedgegen_x_k_nearest failed\n");
-                    rval = 1;
-                    goto CLEANUP;
-                }
-                if (!run_silently) {
-                    printf ("Time to find %d-nearest: %.2f\n", nearnum,
-                                                 CCutil_zeit () - xzeit);
-                    fflush (stdout);
-                }
-            } else {
-                if (CCedgegen_x_quadrant_k_nearest (ncount, quadtry, &dat,
-                                 (double *) NULL, 1, &tempcount, &templist,
-                                 run_silently)) {
-                    fprintf (stderr, "x-quad nearest code failed\n");
-                    rval = 1;
-                    goto CLEANUP;
-                }
-                if (!run_silently) {
-                    printf ("Time to find quad %d-nearest: %.2f\n", quadtry,
-                                                 CCutil_zeit () - xzeit);
-                    fflush (stdout);
-                }
-            }
+            assert(0);
         }
         if (!cycfname && !edgecycfname) {
-            xzeit = CCutil_zeit ();
-            if (tour_type == LK_GREEDY) {
-                if (CCedgegen_x_greedy_tour (ncount, &dat, incycle, &val,
-                        tempcount, templist, run_silently)) {
-                    fprintf (stderr, "CCedgegen_x_greedy_tour failed\n");
-                    rval = 1; goto CLEANUP;
-                }
-            } else if (tour_type == LK_QBORUVKA) {
-                if (CCedgegen_x_qboruvka_tour (ncount, &dat, incycle, &val,
-                        tempcount, templist, run_silently)) {
-                    fprintf (stderr, "CCedgegen_x_qboruvka_tour failed\n");
-                    rval = 1; goto CLEANUP;
-                }
-            } else if (tour_type == LK_RANDOM) {
-                randcycle (ncount, incycle, &rstate);
-            } else {
-                if (CCedgegen_x_nearest_neighbor_tour (ncount,
-                      CCutil_lprand (&rstate) % ncount, &dat, incycle, &val)) {
-                    fprintf (stderr, "CCedgegen_x_nearest_neighbor_tour failed\n");
-                    rval = 1;
-                    goto CLEANUP;
-                }
-            }
-            if (!run_silently) {
-                printf ("Time to grow tour: %.2f\n", CCutil_zeit () - xzeit);
-                fflush (stdout);
-            }
+            assert(0);
         }
     } else {
-        double jzeit = CCutil_zeit ();
         if (!goodfname && !edgegenfname) {
-            if (!nearnum)
-                nearnum = 4 * quadtry;
-            if (CCedgegen_junk_k_nearest (ncount, nearnum, &dat,
-                    (double *) NULL, 1, &tempcount, &templist, run_silently)) {
-                fprintf (stderr, "CCedgegen_junk_k_nearest failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-            if (!run_silently) {
-                printf ("Time to find %d nearest: %.2f\n",
-                         nearnum, CCutil_zeit () - jzeit);
-                fflush (stdout);
-            }
+            assert(0);
         }
         if (!cycfname && !edgecycfname) {
-            jzeit = CCutil_zeit();
-            if (tour_type == LK_GREEDY) {
-                if (CCedgegen_junk_greedy_tour (ncount, &dat, incycle, &val,
-                        tempcount, templist, run_silently)) {
-                    fprintf (stderr, "CCedgegen_junk_greedy_tour failed\n");
-                    rval = 1; goto CLEANUP;
-                }
-            } else if (tour_type == LK_QBORUVKA) {
-                if (CCedgegen_junk_qboruvka_tour (ncount, &dat, incycle, &val,
-                        tempcount, templist, run_silently)) {
-                    fprintf (stderr, "CCedgegen_junk_qboruvka_tour failed\n");
-                    rval = 1; goto CLEANUP;
-                }
-            } else if (tour_type == LK_RANDOM) {
-                randcycle (ncount, incycle, &rstate);
-            } else {
-                if (CCedgegen_junk_nearest_neighbor_tour (ncount,
-                       CCutil_lprand (&rstate) % ncount, &dat, incycle,
-                       &val, run_silently)) {
-                    fprintf (stderr, "CCedgegen_junk_nearest_neighbor_tour failed\n");
-                    rval = 1;
-                    goto CLEANUP;
-                }
-            }
-            if (!run_silently) {
-                printf ("Time to grow tour: %.2f\n", CCutil_zeit () - jzeit);
-                fflush (stdout);
-            }
+            assert(0);
         }
     }
 
