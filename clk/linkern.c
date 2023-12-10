@@ -29,7 +29,7 @@
 /*  int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,           */
 /*      int *elist, int stallcount, int repeatcount, int *incycle,          */
 /*      int *outcycle, double *val                                          */
-/*      int silent, double time_bound, double length_bound,                 */
+/*      int silent,                 */
 /*      int kicktype, CCrandstate *rstate)               */
 /*    RUNS Chained Lin-Kernighan.                                           */
 /*    -ncount (the number of nodes int the graph)                           */
@@ -41,10 +41,6 @@
 /*    -incycle (a starting cycle, in node node node format - can be NULL)   */
 /*    -outcycle (returns the cycle - can be NULL)                           */
 /*    -run_slightly (if nonzero, then very little info will be printed)     */
-/*    -time_bound (if postive, then the search will stop after the kick     */
-/*       that puts the running time above this number of seconds)           */
-/*    -length_bound (if postive, then the search will stop after the kick   */
-/*       that puts the tour at or below this length)                        */
 /*    -kicktype (specifies the type of kick used - should be one of         */
 /*       CC_LK_RANDOM_KICK, CC_LK_GEOMETRIC_KICK, CC_LK_CLOSE_KICK, or      */
 /*       CC_LK_WALK_KICK)                                                   */
@@ -55,11 +51,9 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "config.h"
 #include "linkern.h"
-#include "flip2.h"
+#include "flipper.h"
 #include "kdtree.h"
-#include "util.h"
 
 #define MAXDEPTH       25   /* Shouldn't really be less than 2.             */
 #define KICK_MAXDEPTH  50
@@ -236,10 +230,9 @@ static void
 static int
    buildgraph (graph *G, int ncount, int ecount, int *elist, distobj *D),
    repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
-       int stallcount, int repeatcount, double *val, double time_bound,
-       double length_bound, int silent, int kicktype,
+       int stallcount, int repeatcount, double *val, int silent, int kicktype,
        CCptrworld *intptr_world, CCptrworld *edgelook_world,
-        CCrandstate *rstate),
+       CCrandstate *rstate),
    weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
        CClk_flipper *F, int gain, int t1, int t2, flipstack *fstack,
        CCptrworld *intptr_world, CCptrworld *edgelook_world),
@@ -296,8 +289,7 @@ CC_PTRWORLD_LEAKS_ROUTINE(edgelook, edgelook_check_leaks, diff, int)
 int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
         int *elist, int stallcount, int repeatcount, int *incycle,
         int *outcycle, double *val,
-        int silent, double time_bound, double length_bound,
-        int kicktype, CCrandstate *rstate)
+        int silent, int kicktype, CCrandstate *rstate)
 {
     int rval = 0;
     int i;
@@ -373,8 +365,7 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     }
 
     rval = repeated_lin_kernighan (&G, &D, tcyc, stallcount, repeatcount,
-                 val, time_bound, length_bound, silent,
-                 kicktype, &intptr_world, &edgelook_world, rstate);
+                 val, silent, kicktype, &intptr_world, &edgelook_world, rstate);
     if (rval) {
         fprintf (stderr, "repeated_lin_kernighan failed\n"); goto CLEANUP;
     }
@@ -406,8 +397,7 @@ CLEANUP:
 #endif
 
 static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
-        int stallcount, int count, double *val, double time_bound,
-        double length_bound, int silent, int kicktype,
+        int stallcount, int count, double *val, int silent, int kicktype,
         CCptrworld *intptr_world, CCptrworld *edgelook_world,
         CCrandstate *rstate)
 {
@@ -600,23 +590,6 @@ printf ("%4d Steps   Best: %.0f   %.2f seconds (Negative %.0f) (%.0f)\n",
             printf ("%4d Steps   Best: %.0f   %.2f seconds\n",
                                round, best, CCutil_zeit () - szeit);
             fflush (stdout);
-        }
-
-        if (time_bound > 0.0 && (CCutil_zeit () - szeit) > time_bound) {
-            printf ("STOP - timebound (%.2f seconds)\n", CCutil_zeit ()-szeit);
-            if (silent == 1) {
-                printf ("STEPS: %d\n", round);
-            }
-            fflush (stdout);
-            break;
-        }
-        if (length_bound > 0.0 && best <= length_bound) {
-            printf ("STOP - length bound reached (%.0f)\n", length_bound);
-            if (silent == 1) {
-                printf ("STEPS: %d\n", round);
-            }
-            fflush (stdout);
-            break;
         }
     }
     if (silent == 0 && round > 0) {
@@ -2027,9 +2000,11 @@ static void turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world)
 #endif
 }
 
-static void kickturn (int n, aqueue *Q, CC_UNUSED distobj *D,
-        CC_UNUSED graph *G, CClk_flipper *F, CCptrworld *intptr_world)
+static void kickturn (int n, aqueue *Q, distobj *D,
+        graph *G, CClk_flipper *F, CCptrworld *intptr_world)
 {
+    (void)D;
+    (void)G;
 #ifdef USE_HEAP
     add_to_active_queue (n, Q, D, G, F);
     {
@@ -2060,9 +2035,11 @@ static void kickturn (int n, aqueue *Q, CC_UNUSED distobj *D,
 }
 
 static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
-        CC_UNUSED distobj *D, CCptrworld *intptr_world)
+        distobj *D, CCptrworld *intptr_world)
 {
     int i, k;
+
+    (void)D;
 
 #ifdef USE_HEAP
     add_to_active_queue (n, Q, D, G, F);

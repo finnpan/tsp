@@ -71,9 +71,7 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "config.h"
-#include "flip2.h"
-#include "util.h"
+#include "flipper.h"
 
 
 #define GROUPSIZE_FACTOR 0.50

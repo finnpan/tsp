@@ -98,7 +98,14 @@
 #ifndef __UTIL_H
 #define __UTIL_H
 
-#include "config.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <assert.h>
+#include <time.h>
+
 
 #define CC_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 

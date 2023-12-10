@@ -27,25 +27,16 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "config.h"
 #include "linkern.h"
-#include "util.h"
 #include "kdtree.h"
 
 #define BIGDOUBLE (1e30)
 
 
 static int norm = CC_EUCLIDEAN;
-static int seed = 0;
-static int quadtry = 2;
-static int run_silently = 0;
+static int run_silently = 1;
 static int kick_type = CC_LK_WALK_KICK;
-
-static int in_repeater = -1;
 static int number_runs = 0;
-static double time_bound = -1.0;
-static double length_bound = -1.0;
-
 static char *nodefile = (char *) NULL;
 
 
@@ -69,7 +60,9 @@ int main (int ac, char **av)
     int *incycle = (int *) NULL, *outcycle = (int *) NULL;
     CCdatagroup dat;
     int rval = 0;
+    int seed, in_repeater;
     CCrandstate rstate;
+    int quadtry = 3;
 
     CCutil_init_datagroup (&dat);
 
@@ -98,7 +91,7 @@ int main (int ac, char **av)
     }
     CCutil_dat_getnorm (&dat, &norm);
 
-    if (in_repeater == -1) in_repeater = ncount;
+    in_repeater = ncount;
 
     incycle = CC_SAFE_MALLOC (ncount, int);
     if (!incycle) {
@@ -153,49 +146,22 @@ int main (int ac, char **av)
         goto CLEANUP;
     }
 
-    if (number_runs) {
-        k = 0;
-        best = BIGDOUBLE;
-        do {
-            printf ("\nStarting Run %d\n", k);
-            if (CClinkern_tour (ncount, &dat, tempcount, templist, 100000000,
-                   in_repeater, incycle, outcycle, &val, run_silently,
-                   time_bound, length_bound, kick_type,
-                   &rstate)) {
-                fprintf (stderr, "CClinkern_tour failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-            if (val < best) {
-                best = val;
-            }
-        } while (++k < number_runs);
-        printf ("Overall Best Cycle: %.0f\n", val);
-        fflush (stdout);
-    } else {
-        double lkzeit = CCutil_zeit ();
-        int attempt = 1;
-        do {
-            if (CClinkern_tour (ncount, &dat, tempcount, templist, 10000000,
-                   in_repeater, incycle, outcycle, &val, run_silently,
-                   time_bound, length_bound, kick_type,
-                   &rstate)) {
-                fprintf (stderr, "CClinkern_tour failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-            if (length_bound != -1 && val > length_bound) {
-                printf ("Cycle of value %.0f  -  did not reach %.0f\n",
-                    val, length_bound);
-                printf ("Try again. Number of attempts: %d\n", ++attempt);
-            }
-        } while (length_bound != -1 && val > length_bound);
-        if (run_silently)
-            printf ("Lin-Kernighan Running Time: %.2f\n",
-                    CCutil_zeit () - lkzeit);
-        printf ("Final Cycle: %.0f\n", val);
-        fflush (stdout);
-    }
+    k = 0;
+    best = BIGDOUBLE;
+    do {
+        printf ("\nStarting Run %d\n", k);
+        if (CClinkern_tour (ncount, &dat, tempcount, templist, 100000000,
+                in_repeater, incycle, outcycle, &val, run_silently,
+                kick_type, &rstate)) {
+            fprintf (stderr, "CClinkern_tour failed\n");
+            rval = 1;
+            goto CLEANUP;
+        }
+        if (val < best) {
+            best = val;
+        }
+    } while (++k < number_runs);
+    printf ("Overall Best Cycle: %.0f\n", val);
     printf ("Total Running Time: %.2f\n", CCutil_zeit () - startzeit);
     fflush (stdout);
 
@@ -220,9 +186,6 @@ static int parseargs (int ac, char **av)
 
     while ((c = CCutil_bix_getopt (ac, av, "a:bBD:E:g:G:h:k:lI:K:N:o:q:Qr:R:s:S:t:y:Y:", &boptind, &boptarg)) != EOF)
         switch (c) {
-        case 'h':
-            length_bound = atof (boptarg);
-            break;
         case 'K':
             k = atoi (boptarg);
             if (k == CC_LK_RANDOM_KICK)         kick_type = CC_LK_RANDOM_KICK;
@@ -231,23 +194,11 @@ static int parseargs (int ac, char **av)
             else if (k == CC_LK_WALK_KICK)      kick_type = CC_LK_WALK_KICK;
             else fprintf (stderr, "unknown kick type, using default\n");
             break;
-        case 'q':
-            quadtry = atoi (boptarg);
-            break;
         case 'Q':
             run_silently++;
             break;
         case 'r':
             number_runs = atoi (boptarg);
-            break;
-        case 'R':
-            in_repeater = atoi (boptarg);
-            break;
-        case 's':
-            seed = atoi (boptarg);
-            break;
-        case 't':
-            time_bound = atof (boptarg);
             break;
         case CC_BIX_GETOPT_UNKNOWN:
         case '?':
@@ -268,15 +219,10 @@ static int parseargs (int ac, char **av)
 static void usage (char *f)
 {
     fprintf (stderr, "usage: %s [- see below -] [tsplib_file or dat_file]\n", f);
-    fprintf (stderr, "   -s #  random number seed\n");
     fprintf (stderr, "   -K #  kick (%d-Random, %d-Geometric, %d-Close, %d-Random_Walk [default])\n",
            CC_LK_RANDOM_KICK, CC_LK_GEOMETRIC_KICK,
            CC_LK_CLOSE_KICK, CC_LK_WALK_KICK);
-    fprintf (stderr, "   -q #  use quad #-nearest as the sparse set (default is 3)\n");
     fprintf (stderr, "   -r #  number of runs\n");
-    fprintf (stderr, "   -R #  number of kicks in iterated Lin-Kernighan (default is #nodes)\n");
-    fprintf (stderr, "   -t d  running time bound in seconds\n");
-    fprintf (stderr, "   -h d  tour length bound (stop when we hit d)\n");
     fprintf (stderr, "   -Q    run silently\n");
 }
 

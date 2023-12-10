@@ -50,8 +50,6 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "config.h"
-#include "util.h"
 #include "kdtree.h"
 
 #define CUTOFF 5
@@ -407,10 +405,6 @@ static unsigned char findmaxspread (int l, int u, CCkdtree *thetree,
 /*                                                                          */
 /****************************************************************************/
 
-
-#include "config.h"
-#include "kdtree.h"
-#include "util.h"
 
 #define BIGDOUBLE (1e30)
 #define NEAR_HEAP_CUTOFF 100  /* When to switch from list to heap       */
