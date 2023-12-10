@@ -22,7 +22,9 @@
 #ifndef __FLIPPER_H
 #define __FLIPPER_H
 
-#include "util.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 typedef struct CClk_parentnode {
     struct CClk_parentnode *adj[2];

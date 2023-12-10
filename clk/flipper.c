@@ -77,6 +77,8 @@
 #define GROUPSIZE_FACTOR 0.50
 #define SEGMENT_SPLIT_CUTOFF 0.30
 
+static void safe_free (void *p);
+static void *safe_malloc (size_t size);
 
 static void
     same_segment_flip (CClk_flipper *F, CClk_childnode *a, CClk_childnode *b),
@@ -605,8 +607,10 @@ static void init_flipper (CClk_flipper *Fl)
 static void free_flipper (CClk_flipper *Fl)
 {
     if (Fl) {
-        CC_IFFREE (Fl->parents, CClk_parentnode);
-        CC_IFFREE (Fl->children, CClk_childnode);
+        safe_free((void*)Fl->parents);
+        Fl->parents = (CClk_parentnode *) NULL;
+        safe_free((void*)Fl->children);
+        Fl->children = (CClk_childnode *) NULL;
         Fl->reversed = 0;
         Fl->nsegments = 0;
         Fl->groupsize = 0;
@@ -623,8 +627,9 @@ static int build_flipper (CClk_flipper *Fl, int ncount)
     Fl->nsegments =  (ncount + Fl->groupsize - 1) / Fl->groupsize;
     Fl->split_cutoff = Fl->groupsize * SEGMENT_SPLIT_CUTOFF;
 
-    Fl->parents = CC_SAFE_MALLOC (Fl->nsegments, CClk_parentnode);
-    Fl->children = CC_SAFE_MALLOC (ncount + 1, CClk_childnode);
+
+    Fl->parents = safe_malloc (Fl->nsegments * sizeof(CClk_parentnode));
+    Fl->children = safe_malloc ((ncount + 1) * sizeof(CClk_childnode));
                  /* The +1 will stop a purify burp later */
     if (Fl->parents  == (CClk_parentnode *) NULL ||
         Fl->children == (CClk_childnode *) NULL) {
@@ -638,4 +643,26 @@ CLEANUP:
         free_flipper (Fl);
     }
     return rval;
+}
+
+static void safe_free (void *p)
+{
+    if (!p) {
+        fprintf (stderr, "Warning: null pointer freed\n");
+        return;
+    }
+    free (p);
+}
+
+static void *safe_malloc (size_t size)
+{
+    void *mem = (void *) NULL;
+    if (size == 0) {
+        fprintf (stderr, "Warning: 0 bytes allocated\n");
+    }
+    mem = (void *) malloc (size);
+    if (mem == (void *) NULL) {
+        fprintf (stderr, "Out of memory. Asked for %d bytes\n", (int) size);
+    }
+    return mem;
 }
