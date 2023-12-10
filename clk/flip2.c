@@ -63,10 +63,6 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "config.h"
-#include "util.h"
-#include "linkern.h"
-
 /****************************************************************************/
 /*                                                                          */
 /* TWO-LEVEL TREES:                                                         */
@@ -74,6 +70,11 @@
 /*     1. Uses the "groupsize" approach described in the paper.             */
 /*                                                                          */
 /****************************************************************************/
+
+#include "config.h"
+#include "flip2.h"
+#include "util.h"
+
 
 #define GROUPSIZE_FACTOR 0.50
 #define SEGMENT_SPLIT_CUTOFF 0.30
@@ -640,5 +641,3 @@ CLEANUP:
     }
     return rval;
 }
-
-

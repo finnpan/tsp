@@ -444,7 +444,6 @@ int
 
 void
     CCutil_dat_getnorm (CCdatagroup *dat, int *norm),
-    CCutil_dsjrand_init (CCdatagroup *dat, int maxdist, int seed),
     CCutil_init_datagroup (CCdatagroup *dat),
     CCutil_freedatagroup (CCdatagroup *dat);
 
@@ -507,8 +506,6 @@ void
 
 
 void
-    CCutil_int_perm_quicksort (int *perm, int *len, int n),
-    CCutil_double_perm_quicksort (int *perm, double *len, int n),
     CCutil_rselect (int *arr, int l, int r, int m, double *coord,
         CCrandstate *rstate);
 
@@ -537,9 +534,6 @@ int
 
 #define CC_BIX_GETOPT_UNKNOWN -3038
 
-
-int
-    CCutil_edge_to_cycle (int ncount, int *elist, int *yesno, int *cyc);
 
 int
     CCutil_gettsplib (char *datname, int *ncount, CCdatagroup *dat);

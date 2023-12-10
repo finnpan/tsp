@@ -57,6 +57,7 @@
 
 #include "config.h"
 #include "linkern.h"
+#include "flip2.h"
 #include "kdtree.h"
 #include "util.h"
 

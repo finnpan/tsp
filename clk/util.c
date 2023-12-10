@@ -13,6 +13,206 @@
 /*                                                                          */
 /****************************************************************************/
 
+
+#include "config.h"
+#include "util.h"
+
+
+/****************************************************************************/
+/*                                                                          */
+/*                   MEMORY ALLOCATION MACROS                               */
+/*                                                                          */
+/*                           TSP CODE                                       */
+/*                                                                          */
+/*                                                                          */
+/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
+/*  Date: February 2, 1995 (cofeb16)                                        */
+/*                                                                          */
+/*                                                                          */
+/*    EXPORTED FUNCTIONS:                                                   */
+/*                                                                          */
+/*  void *CCutil_allocrus (size_t size)                                     */
+/*    RETURNS a pointer to an allocated block of "size" memory.             */
+/*                                                                          */
+/*  void CCutil_freerus (void *ptr)                                         */
+/*    FREES ptr.                                                            */
+/*                                                                          */
+/*  void *CCutil_reallocrus (void *ptr, size_t size)                        */
+/*    REALLOCS ptr to size bytes.                                           */
+/*                                                                          */
+/*  int CCutil_reallocrus_scale (void **pptr, int *pnnum, int count,        */
+/*      double scale, size_t size)                                          */
+/*    void **pptr (a reference to the pointer to the allocated space)       */
+/*    int *pnnum (a reference to the number of objects in the               */
+/*                allocated space)                                          */
+/*    int count (a minimum value for the new nnum)                          */
+/*    double scale (a scale factor to apply to nnum)                        */
+/*    int size (the size of objects to be realloced)                        */
+/*    RETURNS 0 if *pptr was successfully changed to point to at            */
+/*            least max(*pnnum*scale, *pnnum+1000, count) objects.          */
+/*            *pnnum is changed to the new object count.                    */
+/*            Otherwise, prints an error message, leaves *pptr and          */
+/*            *pnnum alone, and returns nonzero.                            */
+/*                                                                          */
+/*  int CCutil_reallocrus_count (void **pptr, int count,                    */
+/*      size_t size)                                                        */
+/*    void **pptr (a reference to the pointer to the allocated space)       */
+/*    int count (number of objects to be realloced)                         */
+/*    int size (the size of the objects to be realloced)                    */
+/*    RETURNS 0 is successful, and 1 if the realloc failed.                 */
+/*                                                                          */
+/*  CCbigchunkptr *CCutil_bigchunkalloc (void)                              */
+/*         RETURNS a CCbigchunkptr with the "this_one" field loaded with a  */
+/*                 a pointer to a bigchunk of memory.                       */
+/*    NOTES:                                                                */
+/*       The idea is to use bigchunks (the size of a bigchunk is defined    */
+/*       by CC_BIGCHUNK in util.h) to supply local routines with memory     */
+/*       for ptrs, so the memory can be shared with other                   */
+/*       local routines.                                                    */
+/*                                                                          */
+/*  CCutil_bigchunkfree (CCbigchunkptr *bp)                                 */
+/*    ACTION: Frees a CCbigchunkptr.                                        */
+/*                                                                          */
+/*  void CCptrworld_init (CCptrworld *world)                                */
+/*     initialize a CCptrworld with 1 reference                             */
+/*                                                                          */
+/*  void CCptrworld_add (CCptrworld *world)                                 */
+/*     add a reference to a CCptrworld                                      */
+/*                                                                          */
+/*  void CCptrworld_delete (CCptrworld *world)                              */
+/*     delete a reference to a ptrworld, and free if no more references     */
+/*                                                                          */
+/****************************************************************************/
+
+typedef struct CCbigchunk {
+    char space[CC_BIGCHUNK];
+    CCbigchunkptr ptr;
+} CCbigchunk;
+
+void *CCutil_allocrus (size_t size)
+{
+    void *mem = (void *) NULL;
+
+    if (size == 0) {
+        fprintf (stderr, "Warning: 0 bytes allocated\n");
+    }
+
+    mem = (void *) malloc (size);
+    if (mem == (void *) NULL) {
+        fprintf (stderr, "Out of memory. Asked for %d bytes\n", (int) size);
+    }
+    return mem;
+}
+
+void CCutil_freerus (void *p)
+{
+    if (!p) {
+        fprintf (stderr, "Warning: null pointer freed\n");
+        return;
+    }
+
+    free (p);
+}
+
+void *CCutil_reallocrus (void *ptr, size_t size)
+{
+    void *newptr;
+
+    if (!ptr) {
+        return CCutil_allocrus (size);
+    } else {
+        newptr = (void *) realloc (ptr, size);
+        if (!newptr) {
+            fprintf (stderr, "Out of memory.  Tried to grow to %d bytes\n",
+                     (int) size);
+        }
+        return newptr;
+    }
+}
+
+int CCutil_reallocrus_scale (void **pptr, int *pnnum, int count, double scale,
+        size_t size)
+{
+    int newsize = (int) (((double) *pnnum) * scale);
+    void *p;
+
+    if (newsize < *pnnum+1000) newsize = *pnnum+1000;
+    if (newsize < count) newsize = count;
+    p = CCutil_reallocrus (*pptr, newsize * size);
+    if (!p) {
+        return 1;
+    } else {
+        *pptr = p;
+        *pnnum = newsize;
+        return 0;
+    }
+}
+
+int CCutil_reallocrus_count (void **pptr, int count, size_t size)
+{
+    void *p = CCutil_reallocrus (*pptr, count * size);
+
+    if (!p) {
+        return 1;
+    } else {
+        *pptr = p;
+        return 0;
+    }
+}
+
+
+CCbigchunkptr *CCutil_bigchunkalloc (void)
+{
+    CCbigchunk *p = CC_SAFE_MALLOC (1, CCbigchunk);
+
+    if (p == (CCbigchunk *) NULL) {
+        fprintf (stderr, "Out of memory in CCutil_bigchunkalloc\n");
+        return (CCbigchunkptr *) NULL;
+    }
+    p->ptr.this_chunk = p;
+    p->ptr.this_one = (void *) p->space;
+    return &(p->ptr);
+}
+
+void CCutil_bigchunkfree (CCbigchunkptr *bp)
+{
+    /* This copy is necessary since CC_FREE zeros its first argument */
+    CCbigchunk *p = bp->this_chunk;
+
+    CC_FREE (p, CCbigchunk);
+}
+
+void CCptrworld_init (CCptrworld *world)
+{
+    world->refcount = 1;
+    world->freelist = (void *) NULL;
+    world->chunklist = (CCbigchunkptr *) NULL;
+}
+
+void CCptrworld_add (CCptrworld *world)
+{
+    world->refcount++;
+}
+
+void CCptrworld_delete (CCptrworld *world)
+{
+    world->refcount--;
+    if (world->refcount <= 0) {
+        CCbigchunkptr *bp, *bpnext;
+
+        for (bp = world->chunklist ; bp; bp = bpnext) {
+            bpnext = bp->next;
+            CCutil_bigchunkfree (bp);
+        }
+        world->chunklist = (CCbigchunkptr *) NULL;
+        world->freelist = (void *) NULL;
+        world->refcount = 0;
+    }
+}
+
+
+
+
 /****************************************************************************/
 /*                                                                          */
 /*                         SORTING ROUTINES                                 */
@@ -24,16 +224,6 @@
 /*                                                                          */
 /*    EXPORTED FUNCTIONS:                                                   */
 /*                                                                          */
-/*  void CCutil_int_perm_quicksort (int *perm, int *len, int n)             */
-/*    perm - must be allocated and initialized by the calling routine,      */
-/*           it will be arranged in increasing order of len.                */
-/*    n - the number of elements in perm and len.                           */
-/*                                                                          */
-/*  void CCutil_double_perm_quicksort (int *perm, double *len, int n)       */
-/*    perm - must be allocated and initialized by the calling routine,      */
-/*           it will be arranged in increasing order of len.                */
-/*    n - the number of elements in perm and len.                           */
-/*                                                                          */
 /*  void CCutil_rselect (int *arr, int l, int r, int m,                     */
 /*      double *coord, CCrandstate *rstate)                                 */
 /*    arr - permutation that will be rearranged                             */
@@ -43,9 +233,6 @@
 /*                                                                          */
 /****************************************************************************/
 
-#include "config.h"
-#include "util.h"
-
 #define BITS_PER_PASS (8)
 
 
@@ -54,59 +241,6 @@ static void
            double *coord),
     select_sort (int *arr, int n, double *coord),
     select_sort_dsample (double *samp, int n);
-
-
-void CCutil_int_perm_quicksort (int *perm, int *len, int n)
-{
-    int i, j, temp, t;
-
-    if (n <= 1)
-        return;
-
-    CC_SWAP (perm[0], perm[(n - 1)/2], temp);
-
-    i = 0;
-    j = n;
-    t = len[perm[0]];
-
-    while (1) {
-        do i++; while (i < n && len[perm[i]] < t);
-        do j--; while (len[perm[j]] > t);
-        if (j < i) break;
-        CC_SWAP (perm[i], perm[j], temp);
-    }
-    CC_SWAP (perm[0], perm[j], temp);
-
-    CCutil_int_perm_quicksort (perm, len, j);
-    CCutil_int_perm_quicksort (perm + i, len, n - i);
-}
-
-
-void CCutil_double_perm_quicksort (int *perm, double *len, int n)
-{
-    int i, j, temp;
-    double t;
-
-    if (n <= 1)
-        return;
-
-    CC_SWAP (perm[0], perm[(n - 1)/2], temp);
-
-    i = 0;
-    j = n;
-    t = len[perm[0]];
-
-    while (1) {
-        do i++; while (i < n && len[perm[i]] < t);
-        do j--; while (len[perm[j]] > t);
-        if (j < i) break;
-        CC_SWAP (perm[i], perm[j], temp);
-    }
-    CC_SWAP (perm[0], perm[j], temp);
-
-    CCutil_double_perm_quicksort (perm, len, j);
-    CCutil_double_perm_quicksort (perm + i, len, n - i);
-}
 
 
 /**********  Median - Select Routines **********/
@@ -370,121 +504,6 @@ int CCutil_bix_getopt (int ac, char **av, const char *def, int *p_optind,
             return (c);
         }
     }
-}
-
-
-
-/****************************************************************************/
-/*                                                                          */
-/*                    EDGE LIST UTILITY ROUTINES                            */
-/*                                                                          */
-/*                              TSP CODE                                    */
-/*                                                                          */
-/*  Written by: Applegate, Bixby, Chvatal, and Cook                         */
-/*  Date: February 8, 1995                                                  */
-/*                                                                          */
-/*    EXPORTED FUNCTIONS:                                                   */
-/*                                                                          */
-/*  int CCutil_edge_to_cycle (int ncount, int *elist, int *yesno,           */
-/*      int *cyc)                                                           */
-/*    CONVERTS an edgelist to a cycle.                                      */
-/*     -ncount is the number of nodes.                                      */
-/*     -elist is an edgelist in end1 end2 format.                           */
-/*     -yesno returns 1 if elist describes a tour and 0 otherwise.          */
-/*     -cyc returns the cycle in permutation format if it is not NULL       */
-/*      (if cyc is not NULL, then it should point to an array of            */
-/*      length at least ncount).                                            */
-/*     Returns a nonzero value if there was an error.                       */
-/*                                                                          */
-/****************************************************************************/
-
-
-int CCutil_edge_to_cycle (int ncount, int *elist, int *yesno, int *cyc)
-{
-    int *Lside, *Rside;
-    int i, k, end1, end2, prev, this, next, start, okfirst, first = 0;
-    int rval = 0;
-
-    *yesno = 0;
-
-    Lside = CC_SAFE_MALLOC (ncount, int);
-    Rside = CC_SAFE_MALLOC (ncount, int);
-    if (!Lside || !Rside) {
-        fprintf (stderr, "out of memory in CCutil_edge_to_cycle\n");
-        rval = 1; goto CLEANUP;
-    }
-
-    for (i = 0; i < ncount; i++) {
-        Lside[i] = Rside[i] = -1;
-    }
-
-    for (i = 0, k = 0; i < ncount; i++) {
-        end1 = elist[k++];
-        end2 = elist[k++];
-        if (Lside[end1] == -1)
-            Lside[end1] = end2;
-        else
-            Rside[end1] = end2;
-        if (Lside[end2] == -1)
-            Lside[end2] = end1;
-        else
-            Rside[end2] = end1;
-    }
-
-    for (i = 0, k = 0; i < ncount; i++) {
-        end1 = elist[k++];
-        end2 = elist[k++];
-        if (Lside[end1] == -1 || Rside[end1] == -1 ||
-            Lside[end2] == -1 || Rside[end2] == -1) {
-            *yesno = 0;  goto CLEANUP;
-        }
-    }
-    start = elist[0];
-    prev = -2;
-    this = start;
-    k = 0;
-    okfirst = 0;
-    do {
-        if (this == first)
-           okfirst = 1;
-        if (Lside[this] != prev)
-            next = Lside[this];
-        else
-            next = Rside[this];
-        prev = this;
-        this = next;
-        k++;
-    } while (next != start && k < ncount);
-
-    if (k != ncount || !okfirst) {
-        *yesno = 0;  goto CLEANUP;
-    }
-
-    *yesno = 1;
-
-    if (cyc) {
-        start = first;
-        prev = -2;
-        this = start;
-        k = 0;
-        do {
-            cyc[k++] = this;
-            if (Lside[this] != prev)
-                next = Lside[this];
-            else
-                next = Rside[this];
-            prev = this;
-            this = next;
-        } while (next != start && k < ncount);
-    }
-
-
-CLEANUP:
-
-    CC_IFFREE (Lside, int);
-    CC_IFFREE (Rside, int);
-
-    return rval;
 }
 
 
@@ -772,4 +791,1076 @@ int CCutil_gettsplib(char *datname, int *ncount, CCdatagroup *dat)
     } else {
         return 0;
     }
+}
+
+
+
+
+/****************************************************************************/
+/*                                                                          */
+/*                           DHEAP ROUTINES                                 */
+/*                                                                          */
+/*                                                                          */
+/*                              TSP CODE                                    */
+/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
+/*  Date: February 9, 1995                                                  */
+/*  Reference: R.E. Tarjan, Data Structures and Network Algorithms          */
+/*                                                                          */
+/*    EXPORTED FUNCTIONS:                                                   */
+/*                                                                          */
+/*  int CCutil_dheap_init (CCdheap *h, int k)                               */
+/*        -h should point to a CCdheap struct.                              */
+/*        -k the max number of elements in the dheap.                       */
+/*                                                                          */
+/*  void CCutil_dheap_free (CCdheap *h)                                     */
+/*    -frees the spaces allocated by CCutil_dheap_init                      */
+/*                                                                          */
+/*  int CCutil_dheap_resize (CCdheap *h, int newsize)                       */
+/*    -REALLOCs h so it can contain newsize elements.                       */
+/*    -returns -1 if it can't resize the heap.                              */
+/*                                                                          */
+/*  int CCutil_dheap_findmin (CCdheap *h)                                   */
+/*    -returns the index of the element with min value h->key[i]            */
+/*    -returns -1 if no elements in heap.                                   */
+/*                                                                          */
+/*  int CCutil_dheap_insert (CCdheap *h, int i)                             */
+/*    -inserts the element with index i (so its key should be loaded        */
+/*     beforehand in h->key[i]).                                            */
+/*                                                                          */
+/*  void CCutil_dheap_delete (CCdheap *h, int i)                            */
+/*    -deletes the element with index i.                                    */
+/*                                                                          */
+/*  int CCutil_dheap_deletemin (CCdheap *h)                                 */
+/*    -returns the min element in the heap, and deletes the min element     */
+/*    -returns -1 if no elements in heap.                                   */
+/*                                                                          */
+/*  void CCutil_dheap_changekey (CCdheap *h, int i, double newkey)          */
+/*    -changes the key of the element with index i to newkey.               */
+/*                                                                          */
+/****************************************************************************/
+
+/****************************************************************************/
+/*                                                                          */
+/*  NOTES:                                                                  */
+/*      A k-element heap will malloc 16k bytes of memory. If memory is      */
+/*  tight, using integer keys (instead of doubles), brings it down to       */
+/*  12k bytes, and if arbitrary deletions are not required, with a little   */
+/*  rewriting, the h->loc field can be eliminated, bring the space down     */
+/*  to 8k bytes.                                                            */
+/*      These routines work with indices into the h->key array, so in       */
+/*  some cases, you will need to maintain a separate names array to know    */
+/*  what element belongs to index i. For an example, see the k_nearest      */
+/*  code in kdnear.c.                                                       */
+/*                                                                          */
+/****************************************************************************/
+
+#define HEAP_D 3
+#define HEAP_UP(x) (((x)-1)/HEAP_D)
+#define HEAP_DOWN(x) (((x)*HEAP_D)+1)
+
+
+static void
+    dheap_siftup (CCdheap *h, int i, int x),
+    dheap_siftdown (CCdheap *h, int i, int x);
+
+static int
+    dheap_minchild (int x, CCdheap *h);
+
+
+
+int CCutil_dheap_init (CCdheap *h, int k)
+{
+    h->loc = (int *) NULL;
+    h->key = (double *) NULL;
+    h->entry = CC_SAFE_MALLOC (k, int);
+    if (!h->entry)
+        return 1;
+    h->loc = CC_SAFE_MALLOC (k, int);
+    if (!h->loc) {
+        CC_FREE (h->entry, int);
+        return 1;
+    }
+    h->key = CC_SAFE_MALLOC (k, double);
+    if (!h->key) {
+        CC_FREE (h->entry, int);
+        CC_FREE (h->loc, int);
+        return 1;
+    }
+    h->total_space = k;
+    h->size = 0;
+    return 0;
+}
+
+void CCutil_dheap_free (CCdheap *h)
+{
+    CC_IFFREE (h->entry, int);
+    CC_IFFREE (h->loc, int);
+    CC_IFFREE (h->key, double);
+}
+
+int CCutil_dheap_resize (CCdheap *h, int newsize)
+{
+    if (newsize < h->size || newsize < h->total_space) return 0;
+    if (CCutil_reallocrus_count ((void **) &(h->key), newsize,
+                                 sizeof (double))) {
+        return -1;
+    }
+    if (CCutil_reallocrus_count ((void **) &(h->entry), newsize,
+                                 sizeof (int))) {
+        return -1;
+    }
+    if (CCutil_reallocrus_count ((void **) &(h->loc), newsize, sizeof (int))) {
+        return -1;
+    }
+    h->total_space = newsize;
+
+    return 0;
+}
+
+int CCutil_dheap_findmin (CCdheap *h)
+{
+    if (h->size == 0)
+        return -1;
+    else
+        return h->entry[0];
+}
+
+int CCutil_dheap_insert (CCdheap *h, int i)
+{
+    if (h->size >= h->total_space) {
+        fprintf (stderr, "Error - heap already full\n");
+        return 1;
+    }
+    h->size++;
+    dheap_siftup (h, i, h->size - 1);
+    return 0;
+}
+
+void CCutil_dheap_delete (CCdheap *h, int i)
+{
+    int j;
+
+    h->size--;
+    j = h->entry[h->size];
+    h->entry[h->size] = -1;
+
+    if (j != i) {
+        if (h->key[j] <= h->key[i]) {
+            dheap_siftup (h, j, h->loc[i]);
+        } else {
+            dheap_siftdown (h, j, h->loc[i]);
+        }
+    }
+}
+
+int  CCutil_dheap_deletemin (CCdheap *h)
+{
+    int i;
+
+    if (h->size == 0)
+        return -1;
+    else {
+        i = h->entry[0];
+        CCutil_dheap_delete (h, i);
+        return i;
+    }
+}
+
+void CCutil_dheap_changekey (CCdheap *h, int i, double newkey)
+{
+    if (newkey < h->key[i]) {
+        h->key[i] = newkey;
+        dheap_siftup (h, i, h->loc[i]);
+    } else if (newkey > h->key[i]) {
+        h->key[i] = newkey;
+        dheap_siftdown (h, i, h->loc[i]);
+    }
+}
+
+static void dheap_siftup (CCdheap *h, int i, int x)
+{
+    int p;
+
+    p = HEAP_UP (x);
+    while (x && h->key[h->entry[p]] > h->key[i]) {
+        h->entry[x] = h->entry[p];
+        h->loc[h->entry[p]] = x;
+        x = p;
+        p = HEAP_UP (p);
+    }
+    h->entry[x] = i;
+    h->loc[i] = x;
+}
+
+static void dheap_siftdown (CCdheap *h, int i, int x)
+{
+    int c;
+
+    c = dheap_minchild (x, h);
+
+    while (c >= 0 && h->key[h->entry[c]] < h->key[i]) {
+        h->entry[x] = h->entry[c];
+        h->loc[h->entry[c]] = x;
+        x = c;
+        c = dheap_minchild (c, h);
+    }
+    h->entry[x] = i;
+    h->loc[i] = x;
+}
+
+static int dheap_minchild (int x, CCdheap *h)
+{
+    int c = HEAP_DOWN (x);
+    int cend;
+    double minval;
+    int minloc;
+
+    if (c >= h->size)
+        return -1;
+    minval = h->key[h->entry[c]];
+    minloc = c;
+    cend = c + HEAP_D;
+    if (h->size < cend)
+        cend = h->size;
+    for (c++; c < cend; c++) {
+        if (h->key[h->entry[c]] < minval) {
+            minval = h->key[h->entry[c]];
+            minloc = c;
+        }
+    }
+    return minloc;
+}
+
+
+
+
+/****************************************************************************/
+/*                                                                          */
+/*       FUNCTIONS FOR COMPUTING EDGE LENGTHS FOR GEOMETRIC PROBLEMS        */
+/*                                                                          */
+/*                             TSP CODE                                     */
+/*                                                                          */
+/*                                                                          */
+/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
+/*  Date: Summer 1994                                                       */
+/*        Modified - March 2, 1995                                          */
+/*                 - October 5, 1995 (Bico)                                 */
+/*                                                                          */
+/*                                                                          */
+/*    EXPORTED FUNCTIONS:                                                   */
+/*                                                                          */
+/*  int CCutil_dat_setnorm (CCdatagroup *dat, int norm)                     */
+/*     NOTES:                                                               */
+/*         Supported norms (with defs in edgelen.h) are:                    */
+/*             CC_MAXNORM  -  the L-infinity norm                           */
+/*             CC_EUCLIDEAN_CEIL - the norm for the plaXXXX problems        */
+/*             CC_EUCLIDEAN - rounded L-2 norm                              */
+/*             CC_EUCLIDEAN_3D - rounded L-2 norm in 3 space                */
+/*             CC_USER - a norm specified by the user                       */
+/*             CC_GEOGRAPHIC - distances on a sphere (Groetshel and         */
+/*                             Holland)                                     */
+/*             CC_GEOM - sphere in meters, coords in decimal degrees,       */
+/*                             slight modification of CC_GEOGRAPHIC         */
+/*             CC_ATT - pseudo-Euclidean norm for att532                    */
+/*             CC_MATRIXNORM - complete graph (lower + diagonal matrix)     */
+/*             CC_DSJRANDNORM - random edgelengths                          */
+/*             CC_CRYSTAL - Bland-Shallcross xray norm                      */
+/*                     - The coordinates generated for CC_CRYSTAL problems  */
+/*                (in CCutil_getdata.c) have been diveded by the motor      */
+/*                speeds (this makes the edgelen function faster) and       */
+/*                scaled by CRYSTAL_SCALE (currently 10000) and rounded to  */
+/*                the nearest integer (this lets the edgelen function       */
+/*                produce integer lengths without further rounding). The    */
+/*                result is a closer approximation to the Bland -           */
+/*                Shallcross floating point length function than that       */
+/*                given in TSPLIB_1.2.                                      */
+/*             CC_SPARSE - a sparse graph                                   */
+/*             CC_RHMAPx - where x = 1, 2, 3, 4, 5 one of 5 RH mapping      */
+/*                norms.                                                    */
+/*                                                                          */
+/*         If CCUTIL_EDGELEN_FUNCTIONPTR has been defined in util.h,        */
+/*         then CCutil_dat_edgelen is a pointer to a function instead of    */
+/*         a function.  This saves a function call and results in           */
+/*         improved performance on some machines for edgelen-intensive      */
+/*         routines like linkern.  The function pointer is set by           */
+/*         CCutil_dat_setnorm.                                              */
+/*                                                                          */
+/*         IMPORTANT: This means that if CCUTIL_EDGELEN_FUNCTIONPTR is set  */
+/*         and you have more than one CCdatagroup, you must call            */
+/*         CCutil_dat_setnorm whenever you switch from using one            */
+/*         CCdatagroup to the other.  IF YOU DON'T DO THIS, EDGELEN WILL    */
+/*         RETURN INCORRECT RESULTS.  For this reason,                      */
+/*         CCUTIL_EDGELEN_FUNCTIONPTR should only be set with extreme       */
+/*         caution.                                                         */
+/*                                                                          */
+/*         NOTE: CCUTIL_EDGELEN_FUNCTIONPTR does not work with the          */
+/*         subdivision code for parallel TSP.                               */
+/*                                                                          */
+/*    To define a user norm, you must perform the following steps:          */
+/*    1.  In util.h, define the struct CCdata_user to contain the data      */
+/*        necessary for the computation of edge lengths.                    */
+/*    2.  In edgelen.c, write the init_userdat and free_userdat functions   */
+/*        which initialize and free a CCdata_user structure.                */
+/*    3.  In edgelen.c, write the user_edgelen function which               */
+/*        computes the length of the edge for node i to node j, using the   */
+/*        userdat field of the CCdatagroup argument (userdat is of type     */
+/*        CCdata_user).                                                     */
+/*    4.  In getdata.c, write the build_user, read_user_text,               */
+/*        read_user_binary, readmaster_user, and writemaster_user           */
+/*        routines.  read_user_text reads the data file which provides      */
+/*        the data for computing the edge lengths.  build_user and          */
+/*        read_user_binary are optional routines which build random         */
+/*        datasets and read binary datafiles.  writemaster_user writes a    */
+/*        binary version of that data to the master file, and               */
+/*        readmaster_user reads that same data.  See the comments before    */
+/*        those routines in getdata for more details on what they should    */
+/*        do.                                                               */
+/*    5.  In getdata.c, write permute_user, which permutes the data to      */
+/*        reflect a permutation of the nodes.                               */
+/*                                                                          */
+/*  int CCutil_dat_edgelen (int i, int j, CCdatagroup *dat)                 */
+/*     compute the length of an edge                                        */
+/*                                                                          */
+/*  void CCutil_dat_getnorm (CCdatagroup *dat, int *norm)                   */
+/*     get the norm of a CCdatagroup                                        */
+/*                                                                          */
+/*  void CCutil_init_datagroup (CCdatagroup *dat)                           */
+/*     initialize a CCdatagroup                                             */
+/*                                                                          */
+/*  void CCutil_freedatagroup (CCdatagroup *dat)                            */
+/*     free a CCdatagroup                                                   */
+/*                                                                          */
+/****************************************************************************/
+
+static double
+    dtrunc (double);
+
+static int
+    edgelen_nonorm (int i, int j, CCdatagroup *dat),
+    max_edgelen (int i, int j, CCdatagroup *dat),
+    man_edgelen (int i, int j, CCdatagroup *dat),
+    euclid_edgelen (int i, int j, CCdatagroup *dat),
+    euclid_ceiling_edgelen (int i, int j, CCdatagroup *dat),
+    euclid3d_edgelen (int i, int j, CCdatagroup *dat),
+    geographic_edgelen (int i, int j, CCdatagroup *dat),
+    geom_edgelen (int i, int j, CCdatagroup *dat),
+    att_edgelen (int i, int j, CCdatagroup *dat),
+    dsjrand_edgelen (int i, int j, CCdatagroup *dat),
+    crystal_edgelen (int i, int j, CCdatagroup *dat),
+    matrix_edgelen (int i, int j, CCdatagroup *dat),
+    sparse_edgelen (int i, int j, CCdatagroup *dat),
+    user_edgelen (int i, int j, CCdatagroup *dat),
+    rhmap1_edgelen (int i, int j, CCdatagroup *dat),
+    rhmap2_edgelen (int i, int j, CCdatagroup *dat),
+    rhmap3_edgelen (int i, int j, CCdatagroup *dat),
+    rhmap4_edgelen (int i, int j, CCdatagroup *dat),
+    rhmap5_edgelen (int i, int j, CCdatagroup *dat),
+    toroidal_edgelen (int i, int j, CCdatagroup *dat);
+
+static void
+    init_userdat (CCdata_user *userdat),
+    free_userdat (CCdata_user *userdat),
+    init_rhdata (CCdata_rhvector *rhdat),
+    free_rhdata (CCdata_rhvector *rhdat);
+
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264
+#endif
+
+#ifdef  CCUTIL_EDGELEN_FUNCTIONPTR
+
+int (*CCutil_dat_edgelen) (int i, int j, CCdatagroup *dat) = edgelen_nonorm;
+
+#else /* CCUTIL_EDGELEN_FUNCTIONPTR */
+
+int CCutil_dat_edgelen (int i, int j, CCdatagroup *dat)
+{
+    if (dat->ndepot) {
+        if (i >= dat->orig_ncount) {
+            return dat->depotcost[j];
+        } else if (j >= dat->orig_ncount) {
+            return dat->depotcost[i];
+        }
+    }
+    return (dat->edgelen)(i, j, dat);
+}
+
+#endif /* CCUTIL_EDGELEN_FUNCTIONPTR */
+
+
+int CCutil_dat_setnorm (CCdatagroup *dat, int norm)
+{
+    switch (norm) {
+    case CC_EUCLIDEAN_CEIL:
+        dat->edgelen = euclid_ceiling_edgelen;
+        break;
+    case CC_EUCLIDEAN:
+        dat->edgelen = euclid_edgelen;
+        break;
+    case CC_MAXNORM:
+        dat->edgelen = max_edgelen;
+        break;
+    case CC_MANNORM:
+        dat->edgelen = man_edgelen;
+        break;
+    case CC_EUCLIDEAN_3D:
+        dat->edgelen = euclid3d_edgelen;
+        break;
+    case CC_USER:
+        dat->edgelen = user_edgelen;
+        break;
+    case CC_GEOGRAPHIC:
+        dat->edgelen = geographic_edgelen;
+        break;
+    case CC_GEOM:
+        dat->edgelen = geom_edgelen;
+        break;
+    case CC_ATT:
+        dat->edgelen = att_edgelen;
+        break;
+    case CC_MATRIXNORM:
+        dat->edgelen = matrix_edgelen;
+        break;
+    case CC_DSJRANDNORM:
+        dat->edgelen = dsjrand_edgelen;
+        break;
+    case CC_CRYSTAL:
+        dat->edgelen = crystal_edgelen;
+        break;
+    case CC_SPARSE:
+        dat->edgelen = sparse_edgelen;
+        break;
+    case CC_RHMAP1:
+        dat->edgelen = rhmap1_edgelen;
+        break;
+    case CC_RHMAP2:
+        dat->edgelen = rhmap2_edgelen;
+        break;
+    case CC_RHMAP3:
+        dat->edgelen = rhmap3_edgelen;
+        break;
+    case CC_RHMAP4:
+        dat->edgelen = rhmap4_edgelen;
+        break;
+    case CC_RHMAP5:
+        dat->edgelen = rhmap5_edgelen;
+        break;
+    case CC_EUCTOROIDAL:
+        dat->edgelen = toroidal_edgelen;
+        break;
+    default:
+        fprintf (stderr, "ERROR:  Unknown NORM %d.\n", norm);
+        return 1;
+    }
+    dat->norm = norm;
+
+#ifdef CCUTIL_EDGELEN_FUNCTIONPTR
+    CCutil_dat_edgelen = dat->edgelen;
+#endif /* CCUTIL_EDGELEN_FUNCTIONPTR */
+
+    return 0;
+}
+
+void CCutil_dat_getnorm (CCdatagroup *dat, int *norm)
+{
+    (*norm) = dat->norm;
+}
+
+static int edgelen_nonorm (int i, int j, CCdatagroup *dat)
+{
+    fprintf (stderr, "CCutil_dat_edgelen has been called with no norm set\n");
+    fprintf (stderr, "This is a FATAL ERROR\n");
+    if (i != 0 || j != 0 || dat != (CCdatagroup *) NULL) {
+        /* so the compiler won't complain about unused variables */
+        fprintf (stderr, "This is a FATAL ERROR\n");
+        exit (1);
+    }
+    return -1;
+}
+
+/* Several variables that would normally be called y1 and y2 are called
+   yy1 and yy2 to avoid conflict with the bessel functions */
+
+static int max_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double t1 = dat->x[i] - dat->x[j], t2 = dat->y[i] - dat->y[j];
+
+    if (t1 < 0)
+        t1 *= -1;
+    if (t2 < 0)
+        t2 *= -1;
+    t1 += 0.5;
+    t2 += 0.5;
+
+    return (int) (t1 < t2 ? t2 : t1);
+}
+
+static int man_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double t1 = dat->x[i] - dat->x[j], t2 = dat->y[i] - dat->y[j];
+
+    if (t1 < 0)
+        t1 *= -1;
+    if (t2 < 0)
+        t2 *= -1;
+
+    return (int) (t1 + t2 + 0.5);
+}
+
+
+static int euclid_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double t1 = dat->x[i] - dat->x[j], t2 = dat->y[i] - dat->y[j];
+    int temp;
+
+    temp = (int) (sqrt (t1 * t1 + t2 * t2) + 0.5);
+    return temp;
+}
+
+static int toroidal_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double t1 = dat->x[i] - dat->x[j];
+    double t2 = dat->y[i] - dat->y[j];
+    int temp;
+
+    if (t1 < 0) t1 = -t1;
+    if (t2 < 0) t2 = -t2;
+    if (dat->gridsize - t1 < t1) t1 = dat->gridsize - t1;
+    if (dat->gridsize - t2 < t2) t2 = dat->gridsize - t2;
+    temp = (int) (sqrt (t1 * t1 + t2 * t2) + 0.5);
+    return temp;
+}
+
+static int euclid3d_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double t1 = dat->x[i] - dat->x[j], t2 = dat->y[i] - dat->y[j];
+    double t3 = dat->z[i] - dat->z[j];
+    int temp;
+
+    temp = (int) (sqrt (t1 * t1 + t2 * t2 + t3 * t3) + 0.5);
+    return temp;
+}
+
+static int euclid_ceiling_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double t1 = dat->x[i] - dat->x[j], t2 = dat->y[i] - dat->y[j];
+/*
+    int rd;
+    double max;
+
+    max = sqrt (t1 * t1 + t2 * t2);
+    rd = (int) max;
+    return (((max - rd) > .000000001) ? rd + 1 : rd);
+*/
+    return (int) (ceil (sqrt (t1 * t1 + t2 * t2)));
+}
+
+#define GH_PI (3.141592)
+
+static int geographic_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double deg, min;
+    double lati, latj, longi, longj;
+    double q1, q2, q3;
+    int dd;
+    double x1 = dat->x[i], x2 = dat->x[j], yy1 = dat->y[i], yy2 = dat->y[j];
+
+    deg = dtrunc (x1);
+    min = x1 - deg;
+    lati = GH_PI * (deg + 5.0 * min / 3.0) / 180.0;
+    deg = dtrunc (x2);
+    min = x2 - deg;
+    latj = GH_PI * (deg + 5.0 * min / 3.0) / 180.0;
+
+    deg = dtrunc (yy1);
+    min = yy1 - deg;
+    longi = GH_PI * (deg + 5.0 * min / 3.0) / 180.0;
+    deg = dtrunc (yy2);
+    min = yy2 - deg;
+    longj = GH_PI * (deg + 5.0 * min / 3.0) / 180.0;
+
+    q1 = cos (longi - longj);
+    q2 = cos (lati - latj);
+    q3 = cos (lati + latj);
+    dd = (int) (6378.388 * acos (0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3))
+                + 1.0);
+    return dd;
+}
+
+static int geom_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double lati, latj, longi, longj;
+    double q1, q2, q3, q4, q5;
+
+    lati = M_PI * dat->x[i] / 180.0;
+    latj = M_PI * dat->x[j] / 180.0;
+
+    longi = M_PI * dat->y[i] / 180.0;
+    longj = M_PI * dat->y[j] / 180.0;
+
+    q1 = cos (latj) * sin(longi - longj);
+    q3 = sin((longi - longj)/2.0);
+    q4 = cos((longi - longj)/2.0);
+    q2 = sin(lati + latj) * q3 * q3 - sin(lati - latj) * q4 * q4;
+    q5 = cos(lati - latj) * q4 * q4 - cos(lati + latj) * q3 * q3;
+    return (int) (6378388.0 * atan2(sqrt(q1*q1 + q2*q2), q5) + 1.0);
+}
+
+#if 0
+static int geom_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double lati, latj, longi, longj;
+    double q1, q2, q3;
+    int dd;
+
+    lati = M_PI * (dat->x[i] / 180.0);
+    latj = M_PI * (dat->x[j] / 180.0);
+
+    longi = M_PI * (dat->y[i] / 180.0);
+    longj = M_PI * (dat->y[j] / 180.0);
+
+    q1 = cos (longi - longj);
+    q2 = cos (lati - latj);
+    q3 = cos (lati + latj);
+    dd = (int) (6378388.0 * acos (0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3))
+                + 1.0);
+    return dd;
+}
+#endif
+
+static int att_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double xd = dat->x[i] - dat->x[j];
+    double yd = dat->y[i] - dat->y[j];
+    double rij = sqrt ((xd * xd + yd * yd) / 10.0);
+    double tij = dtrunc (rij);
+    int dij;
+
+    if (tij < rij)
+        dij = (int) tij + 1;
+    else
+        dij = (int) tij;
+    return dij;
+}
+
+static double dtrunc (double x)
+{
+    int k;
+
+    k = (int) x;
+    x = (double) k;
+    return x;
+}
+
+static int dsjrand_edgelen (int i, int j, CCdatagroup *dat)
+{
+    int di = (int) dat->x[i];
+    int dj = (int) dat->x[j];
+    int x, y, z;
+
+    x = di&dj;
+    y = di|dj;
+    z = dat->dsjrand_param;
+
+    x *= z;
+    y *= x;
+    z *= y;
+
+    z ^= dat->dsjrand_param;
+
+    x *= z;
+    y *= x;
+    z *= y;
+
+    x = ((di+dj)^z)&0x7fffffff;
+    return (int)(x * dat->dsjrand_factor);
+}
+
+#define CRYSTAL_SCALE 10000
+
+#define CRYSTAL_FLIP_TOL ((180 * CRYSTAL_SCALE * 4) / 5)
+#define CRYSTAL_NEEDS_FLIP(x) ((x) > (CRYSTAL_FLIP_TOL))
+#define CRYSTAL_FLIP(x) ((2 * (CRYSTAL_FLIP_TOL)) - (x))
+
+static int crystal_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double w, w1;
+
+    w = dat->x[i] - dat->x[j];
+    if (w < 0)
+        w = -w;
+    w1 = dat->y[i] - dat->y[j];
+    if (w1 < 0)
+        w1 = -w1;
+    if (CRYSTAL_NEEDS_FLIP (w1))
+        w1 = CRYSTAL_FLIP (w1);
+    if (w < w1)
+        w = w1;
+    w1 = dat->z[i] - dat->z[j];
+    if (w1 < 0)
+        w1 = -w1;
+    if (w < w1)
+        w = w1;
+
+    return (int) w;
+}
+
+static int matrix_edgelen (int i, int j, CCdatagroup *dat)
+{
+    if (i > j)
+        return (dat->adj[i])[j];
+    else
+        return (dat->adj[j])[i];
+}
+
+static int sparse_edgelen (int i, int j, CCdatagroup *dat)
+{
+    int *adj;
+    int k, deg;
+
+    if (i > j) {
+        CC_SWAP (i, j, k);
+    }
+    adj = dat->adj[i];
+    deg = dat->degree[i];
+
+    for (k = 0; k < deg; k++) {
+        if (adj[k] == j) {
+            return dat->len[i][k];
+        }
+    }
+    return dat->default_len;
+}
+
+void CCutil_init_datagroup (CCdatagroup *dat)
+{
+    dat->x = (double *) NULL;
+    dat->y = (double *) NULL;
+    dat->z = (double *) NULL;
+    dat->adj = (int **) NULL;
+    dat->adjspace = (int *) NULL;
+    dat->len      = (int **) NULL;
+    dat->lenspace = (int *) NULL;
+    dat->degree   = (int *) NULL;
+    dat->norm = 0;
+    dat->dsjrand_param = 1;
+    dat->dsjrand_factor = 1.0;
+    dat->default_len = 100000;
+    dat->sparse_ecount = 0;
+    dat->edgelen = edgelen_nonorm;
+    init_userdat (&dat->userdat);
+    init_rhdata (&dat->rhdat);
+    dat->ndepot = 0;
+    dat->orig_ncount = 0;
+    dat->depotcost = (int *) NULL;
+    dat->orig_names = (int *) NULL;
+}
+
+void CCutil_freedatagroup (CCdatagroup *dat)
+{
+    CC_IFFREE (dat->x, double);
+    CC_IFFREE (dat->y, double);
+    CC_IFFREE (dat->z, double);
+    CC_IFFREE (dat->adj, int *);
+    CC_IFFREE (dat->adjspace, int);
+    CC_IFFREE (dat->len, int *);
+    CC_IFFREE (dat->lenspace, int);
+    CC_IFFREE (dat->degree, int);
+    free_userdat (&dat->userdat);
+    free_rhdata (&dat->rhdat);
+    CC_IFFREE (dat->depotcost, int);
+    CC_IFFREE (dat->orig_names, int);
+}
+
+static void init_userdat (CCdata_user *userdat)
+{
+    userdat->x = (double *) NULL;
+    userdat->y = (double *) NULL;
+}
+
+static void free_userdat (CCdata_user *userdat)
+{
+    CC_IFFREE (userdat->x, double);
+    CC_IFFREE (userdat->y, double);
+}
+
+static int user_edgelen (int i, int j, CCdatagroup *dat)
+{
+    double dw = dat->userdat.x[i] - dat->userdat.x[j];
+    double dw1 = dat->userdat.y[i] - dat->userdat.y[j];
+    static const double ibm_xmult[7] = {1062.5,
+        300.0,
+        300.0,
+        250.0,
+        300.0,
+        1000.0,
+        154.6};
+    static const double ibm_xadd[7] = {155.0 - 0.01 * 1062.5,
+        197.5 - 0.05 * 300.0,
+        212.5 - 0.10 * 300.0,
+        227.5 - 0.15 * 250.0,
+        240.5 - 0.20 * 300.0,
+        255.0 - 0.25 * 1000.0,
+        305.0 - 0.30 * 154.6};
+    static const double ibm_ymult[7] = {1062.5,
+        450.0,
+        350.0,
+        250.0,
+        300.0,
+        900.0,
+        157.7};
+    static const double ibm_yadd[7] = {150.0 - 0.01 * 1062.5,
+        192.5 - 0.05 * 450.0,
+        215.0 - 0.10 * 350.0,
+        232.5 - 0.15 * 250.0,
+        245.5 - 0.20 * 300.0,
+        250.0 - 0.25 * 900.0,
+        295.0 - 0.30 * 157.7};
+
+    if (dw < 0.0)
+        dw = -dw;
+    dw /= 25400.0;
+    if (dw <= 0.01) {
+        dw *= 15500.0;
+    } else if (dw >= 0.30) {
+        dw = dw * 154.6 + (305.0 - 0.3 * 154.6);
+    } else {
+        dw = dw * ibm_xmult[(int) (dw / 0.05)] +
+            ibm_xadd[(int) (dw / 0.05)];
+    }
+    if (dw1 < 0.0)
+        dw1 = -dw1;
+    dw1 /= 25400.0;
+    if (dw1 <= 0.01) {
+        dw1 *= 15000.0;
+    } else if (dw1 >= 0.30) {
+        dw1 = dw1 * 157.7 + (295.0 - 0.3 * 157.7);
+    } else {
+        dw1 = dw1 * ibm_ymult[(int) (dw1 / 0.05)] +
+            ibm_yadd[(int) (dw1 / 0.05)];
+    }
+    if (dw < dw1)
+        dw = dw1;
+    return (int) dw;
+}
+
+static void init_rhdata (CCdata_rhvector *rhdat)
+{
+    rhdat->space = (char *) NULL;
+    rhdat->vectors = (char **) NULL;
+    rhdat->rhlength = 0;
+    rhdat->dist_00 = 0;
+    rhdat->dist_01 = 0;
+    rhdat->dist_02 = 0;
+    rhdat->dist_22 = 0;
+    rhdat->p       = 0.0;
+}
+
+static void free_rhdata (CCdata_rhvector *rhdat)
+{
+    CC_IFFREE (rhdat->space, char);
+    CC_IFFREE (rhdat->vectors, char *);
+    rhdat->rhlength = 0;
+}
+
+static int rhmap1_edgelen (int i, int j, CCdatagroup *dat)
+{
+    char **vectors = dat->rhdat.vectors;
+    int rhlength = dat->rhdat.rhlength;
+    char *v1 = vectors[i];
+    char *v2 = vectors[j];
+    int n;
+    int sum = 0;
+    int dist_00 = dat->rhdat.dist_00;
+    int dist_01 = dat->rhdat.dist_01;
+    int dist_02 = dat->rhdat.dist_02;
+    int dist_12 = dat->rhdat.dist_12;
+    int dist_22 = dat->rhdat.dist_22;
+
+    if (v1 == (char *) NULL || v2 == (char *) NULL) return 0;
+
+    for (n=0; n<rhlength; n++) {
+        if (v1[n] == 2) {
+            if (v2[n] == 0) sum += dist_02;
+            else if (v2[n] == 1) sum += dist_12;
+            else sum += dist_22;
+        } else {
+            if (v1[n] == v2[n]) sum += dist_00;
+            else if (v2[n] != 2) sum += dist_01;
+            else if (v1[n] == 0) sum += dist_02;
+            else sum += dist_12;
+        }
+    }
+    return sum;
+}
+
+static int rhmap2_edgelen (int i, int j, CCdatagroup *dat)
+{
+    char **vectors = dat->rhdat.vectors;
+    int rhlength = dat->rhdat.rhlength;
+    char *v1 = vectors[i];
+    char *v2 = vectors[j];
+    int n;
+    double sum = 0;
+    double p = dat->rhdat.p;
+
+    if (v1 == (char *) NULL || v2 == (char *) NULL) return 0;
+
+    for (n=0; n<rhlength; n++) {
+        if (v1[n] == 0) {
+            if (v2[n] == 1) sum += 1;
+            else if (v2[n] == 2) sum += p;
+        } else if (v1[n] == 1) {
+            if (v2[n] == 0) sum += 1;
+            else if (v2[n] == 2) sum += (1-p);
+        } else {
+            if (v2[n] == 0) sum += p;
+            else if (v2[n] == 1) sum += (1-p);
+            else sum += 2*p*(1-p);
+        }
+    }
+    return (int) (sum * 100.0 + 0.5);
+}
+
+#define MAX_DIST 1000
+
+static int rhmap3_edgelen (int i, int j, CCdatagroup *dat)
+{
+    char **vectors = dat->rhdat.vectors;
+    int len = dat->rhdat.rhlength;
+    char *first = vectors[i];
+    char *second = vectors[j];
+    int xindex;
+    int a = 0;
+    int b = 0;
+    int c = 0;
+    int d = 0;
+    int n = 0;
+    double P = dat->rhdat.p;
+    double Q = 1.0 - P;
+    double trans;
+    double temp;
+    double theta;
+    double term;
+
+    if (first == (char *) NULL) {
+        if (second == (char *) NULL) return 0;
+        first = second;
+        second = (char *) NULL;
+    }
+
+    if (second == (char *) NULL) {
+        for (xindex = 0; xindex < len; xindex++) {
+            if (first[xindex] == 1) a++;
+            else if (first[xindex] == 0) b++;
+        }
+        trans = pow(sqrt(P), (double) a) * pow(sqrt(Q), (double) b);
+    } else {
+        for (xindex = 0; xindex < len; xindex++) {
+            if ((first[xindex] != 2) || (second[xindex] != 2)) {
+                n++;
+                if ((first[xindex] == 1) && (second[xindex] == 1)) a++;
+                if ((first[xindex] == 1) && (second[xindex] == 0)) b++;
+                if ((first[xindex] == 0) && (second[xindex] == 1)) c++;
+                if ((first[xindex] == 0) && (second[xindex] == 0)) d++;
+            }
+        }
+        if (n == 0) return MAX_DIST;
+        temp = (n - (a*P) - (d*Q));
+        term = (4.0 * n * P * Q * (b+c));
+
+        if (term >= (temp * temp)) return MAX_DIST;
+
+        theta = (temp - sqrt((temp * temp) - term)) / (2.0 * n * P * Q);
+
+        if (theta >= 1.0) return MAX_DIST;
+
+        trans = pow((1.0 - (theta*P)),  (double) d) *
+                pow((1.0 - (theta*Q)),  (double) a) *
+                pow((theta * sqrt(P*Q)), (double)  (b+c));
+
+    }
+    return ((int) (-10.0 * log10(trans)));
+}
+
+static int rhmap4_edgelen (int i, int j, CCdatagroup *dat)
+{
+    char **vectors = dat->rhdat.vectors;
+    int len = dat->rhdat.rhlength;
+    char *first = vectors[i];
+    char *second = vectors[j];
+    int xindex;
+    int a = 0;
+    int b = 0;
+    int c = 0;
+    int d = 0;
+    int n = 0;
+    double P = dat->rhdat.p;
+    double Q = 1.0 - P;
+    double trans;
+    double temp;
+    double theta;
+    double term;
+
+    if (first == (char *) NULL) {
+        if (second == (char *) NULL) return 0;
+        first = second;
+        second = (char *) NULL;
+    }
+
+    if (second == (char *) NULL) {
+        for (xindex = 0; xindex < len; xindex++) {
+            if (first[xindex] == 1) a++;
+            else if (first[xindex] == 0) b++;
+        }
+        trans = pow(sqrt(P), (double) a) * pow(sqrt(Q), (double) b);
+    } else {
+        for (xindex = 0; xindex < len; xindex++) {
+            if ((first[xindex] != 2) && (second[xindex] != 2)) {
+                n++;
+                if ((first[xindex] == 1) && (second[xindex] == 1)) a++;
+                if ((first[xindex] == 1) && (second[xindex] == 0)) b++;
+                if ((first[xindex] == 0) && (second[xindex] == 1)) c++;
+                if ((first[xindex] == 0) && (second[xindex] == 0)) d++;
+            }
+        }
+        if (n == 0) return MAX_DIST;
+        temp = (n - (a*P) - (d*Q));
+        term = (4.0 * n * P * Q * (b+c));
+
+        if (term >= (temp * temp)) return MAX_DIST;
+
+        theta = (temp - sqrt((temp * temp) - term)) / (2.0 * n * P * Q);
+
+        if (theta >= 1.0) return MAX_DIST;
+
+        trans = pow((1.0 - (theta*P)),  (double) d) *
+                pow((1.0 - (theta*Q)),  (double) a) *
+                pow((theta * sqrt(P*Q)),  (double) (b+c));
+
+    }
+    return ((int) (-10.0 * log10(trans)));
+}
+
+static int rhmap5_edgelen (int i, int j, CCdatagroup *dat)
+{
+    char **vectors = dat->rhdat.vectors;
+    int rhlength = dat->rhdat.rhlength;
+    char *v1 = vectors[i];
+    char *v2 = vectors[j];
+    int n;
+    int mis = 0;
+    int cnt = 0;
+
+    if (v1 == (char *) NULL || v2 == (char *) NULL) return 0;
+
+    for (n=0; n<rhlength; n++) {
+        if (v1[n] != 2 && v2[n] != 2) {
+            cnt++;
+            if (v1[n] != v2[n]) mis++;
+        }
+    }
+    if (cnt == 0) return 0;
+    else return (int) (10.0 * rhlength * mis) / cnt;
 }

@@ -34,20 +34,12 @@
 
 #define BIGDOUBLE (1e30)
 
-#define LK_RANDOM   (0)
-#define LK_NEIGHBOR (1)
-#define LK_GREEDY   (2)
-#define LK_BORUVKA  (3)
-#define LK_QBORUVKA (4)
-
 
 static int norm = CC_EUCLIDEAN;
 static int seed = 0;
-static int nearnum = 0;
 static int quadtry = 2;
 static int run_silently = 0;
 static int kick_type = CC_LK_WALK_KICK;
-static int tour_type = LK_QBORUVKA;
 
 static int in_repeater = -1;
 static int number_runs = 0;
@@ -128,67 +120,21 @@ int main (int ac, char **av)
         fflush (stdout);
 
         kzeit = CCutil_zeit ();
-        if (nearnum) {
-            if (CCkdtree_k_nearest (&localkt, ncount, nearnum, &dat,
-                    (double *) NULL, 1, &tempcount, &templist,
-                    run_silently, &rstate)) {
-                fprintf (stderr, "CCkdtree_k_nearest failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-            if (!run_silently) {
-                printf ("Time to find %d-nearest: %.2f\n", nearnum,
-                                                CCutil_zeit () - kzeit);
-                fflush (stdout);
-            }
-        } else {
-            if (CCkdtree_quadrant_k_nearest (&localkt, ncount, quadtry,
-                    &dat, (double *) NULL, 1, &tempcount, &templist,
-                    run_silently, &rstate)) {
-                fprintf (stderr, "CCkdtree-quad nearest code failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-            if (!run_silently) {
-                printf ("Time to find quad %d-nearest: %.2f\n",
-                        quadtry, CCutil_zeit () - kzeit);
-                fflush (stdout);
-            }
+        if (CCkdtree_quadrant_k_nearest (&localkt, ncount, quadtry,
+                &dat, (double *) NULL, 1, &tempcount, &templist,
+                run_silently, &rstate)) {
+            fprintf (stderr, "CCkdtree-quad nearest code failed\n");
+            rval = 1;
+            goto CLEANUP;
+        }
+        if (!run_silently) {
+            printf ("Time to find quad %d-nearest: %.2f\n",
+                    quadtry, CCutil_zeit () - kzeit);
+            fflush (stdout);
         }
 
         kzeit = CCutil_zeit ();
-        if (tour_type == LK_GREEDY) {
-            if (CCkdtree_greedy_tour (&localkt, ncount,
-                        &dat, incycle, &val, run_silently, &rstate)) {
-                fprintf (stderr, "CCkdtree greedy-tour failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-        } else if (tour_type == LK_QBORUVKA) {
-            if (CCkdtree_qboruvka_tour (&localkt, ncount,
-                        &dat, incycle, &val, &rstate)) {
-                fprintf (stderr, "CCkdtree qboruvka-tour failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-        } else if (tour_type == LK_BORUVKA) {
-            if (CCkdtree_boruvka_tour (&localkt, ncount,
-                        &dat, incycle, &val, &rstate)) {
-                fprintf (stderr, "CCkdtree boruvka-tour failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-        } else if (tour_type == LK_RANDOM) {
-            randcycle (ncount, incycle, &rstate);
-        } else {
-            if (CCkdtree_nearest_neighbor_tour (&localkt, ncount,
-                        CCutil_lprand (&rstate) % ncount, &dat,
-                        incycle, &val, &rstate)) {
-                fprintf (stderr, "CCkdtree NN-tour failed\n");
-                rval = 1;
-                goto CLEANUP;
-            }
-        }
+        randcycle (ncount, incycle, &rstate);
         if (!run_silently) {
             printf ("Time to grow tour: %.2f\n",
                     CCutil_zeit () - kzeit);
@@ -265,19 +211,6 @@ CLEANUP:
     return rval;
 }
 
-static void randcycle (int ncount, int *cyc, CCrandstate *rstate)
-{
-    int i, k, temp;
-
-    for (i = 0; i < ncount; i++)
-        cyc[i] = i;
-
-    for (i = ncount; i > 1; i--) {
-        k = CCutil_lprand (rstate) % i;
-        CC_SWAP (cyc[i - 1], cyc[k], temp);
-    }
-}
-
 
 static int parseargs (int ac, char **av)
 {
@@ -287,20 +220,8 @@ static int parseargs (int ac, char **av)
 
     while ((c = CCutil_bix_getopt (ac, av, "a:bBD:E:g:G:h:k:lI:K:N:o:q:Qr:R:s:S:t:y:Y:", &boptind, &boptarg)) != EOF)
         switch (c) {
-        case 'a':
-            nearnum = atoi (boptarg);
-            break;
         case 'h':
             length_bound = atof (boptarg);
-            break;
-        case 'I':
-            k = atoi (boptarg);
-            if (k == LK_RANDOM)        tour_type = LK_RANDOM;
-            else if (k == LK_NEIGHBOR) tour_type = LK_NEIGHBOR;
-            else if (k == LK_GREEDY)   tour_type = LK_GREEDY;
-            else if (k == LK_BORUVKA)  tour_type = LK_BORUVKA;
-            else if (k == LK_QBORUVKA) tour_type = LK_QBORUVKA;
-            else fprintf (stderr, "unknown tour type, using default\n");
             break;
         case 'K':
             k = atoi (boptarg);
@@ -352,12 +273,8 @@ static void usage (char *f)
            CC_LK_RANDOM_KICK, CC_LK_GEOMETRIC_KICK,
            CC_LK_CLOSE_KICK, CC_LK_WALK_KICK);
     fprintf (stderr, "   -q #  use quad #-nearest as the sparse set (default is 3)\n");
-    fprintf (stderr, "   -a #  use #-nearest as the sparse edge set\n");
     fprintf (stderr, "   -r #  number of runs\n");
     fprintf (stderr, "   -R #  number of kicks in iterated Lin-Kernighan (default is #nodes)\n");
-    fprintf (stderr, "   -I #  generate starting cycle\n");
-    fprintf (stderr, "           (%d-Rand, %d-NNeigh, %d-Greedy, %d-Boruvka, %d-QBoruvka[default])\n",
-               LK_RANDOM, LK_NEIGHBOR, LK_GREEDY, LK_BORUVKA, LK_QBORUVKA);
     fprintf (stderr, "   -t d  running time bound in seconds\n");
     fprintf (stderr, "   -h d  tour length bound (stop when we hit d)\n");
     fprintf (stderr, "   -Q    run silently\n");
@@ -389,4 +306,17 @@ CLEANUP:
 
     CC_IFFREE (cmdout, char);
     return rval;
+}
+
+static void randcycle (int ncount, int *cyc, CCrandstate *rstate)
+{
+    int i, k, temp;
+
+    for (i = 0; i < ncount; i++)
+        cyc[i] = i;
+
+    for (i = ncount; i > 1; i--) {
+        k = CCutil_lprand (rstate) % i;
+        CC_SWAP (cyc[i - 1], cyc[k], temp);
+    }
 }

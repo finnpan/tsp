@@ -13,8 +13,8 @@
 /*                                                                          */
 /****************************************************************************/
 
-#ifndef __MACHDEFS_H
-#define __MACHDEFS_H
+#ifndef __CONFIG_H
+#define __CONFIG_H
 
 
 
@@ -320,4 +320,4 @@ extern pid_t
 
 #endif
 
-#endif  /* __MACHDEFS_H */
+#endif  /* __CONFIG_H */

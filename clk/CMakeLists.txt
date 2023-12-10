@@ -5,25 +5,12 @@ set(FLAGS_COMMON "-Wall -Werror -Wextra")
 set(CMAKE_C_FLAGS "${FLAGS_COMMON} -O3 -g0")
 set(CMAKE_C_FLAGS_DEBUG "${FLAGS_COMMON} -O0 -g2 -ggdb")
 
-set(source_files
-    kdbuild.c kdnear.c kdspan.c kdtwoopt.c
-    allocrus.c dheaps_i.c edgelen.c
-    util.c linkern.c flip_two.c
-)
 
-set(library_name clk)
-set(target_name lk_main)
+set(target_name clk)
 
-link_libraries(m)
+add_executable(${target_name} ${target_name}.c util.c kdtree.c flip2.c linkern.c)
 
-add_library(${library_name} STATIC ${source_files})
-
-add_executable(${target_name} ${target_name}.c)
-
-target_link_libraries(
-    ${target_name} PRIVATE
-    ${library_name}
-)
+target_link_libraries(${target_name} PRIVATE m)
 
 add_custom_target(clk-test
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/instances/
