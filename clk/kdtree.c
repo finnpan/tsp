@@ -13,26 +13,9 @@
 /*                                                                          */
 /****************************************************************************/
 
-
-
-
 /****************************************************************************/
-/*                                                                          */
-/*                   ROUTINE FOR BUILDING KDTREES                           */
-/*                                                                          */
-/*  (Based on Jon Bentley's paper "K-d trees for semidynamic point sets")   */
-/*                                                                          */
-/*                           TSP CODE                                       */
-/*                                                                          */
-/*                                                                          */
-/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
-/*  Date: February 24, 1995 (cofeb24)                                       */
-/*                                                                          */
-/*                                                                          */
-/*    EXPORTED FUNCTIONS:                                                   */
-/*                                                                          */
 /*  int CCkdtree_build (CCkdtree *kt, int ncount, CCdatagroup *dat,         */
-/*      double *wcoord, CCrandstate *rstate)                                */
+/*      double *wcoord)                                */
 /*    -When called, intree should point to a CCkdtree struct that the       */
 /*     funtion will load with the tree it builds. The wcoord array          */
 /*     is used for node weights (like in Held-Karp), it can be NULL.        */
@@ -45,8 +28,6 @@
 /*       On a 32 bit machine, a CCkdtree on n nodes needs about 52n         */
 /*     bytes of memory. CCkdtree_build will return 1 if an error            */
 /*     occurs (most likely running out of memory).                          */
-/*       CCutil_sprand () should be called before calling                   */
-/*     CCkdtree_build ().                                                   */
 /*                                                                          */
 /****************************************************************************/
 
@@ -67,7 +48,10 @@ static unsigned char
 static CCkdnode
     *build (int l, int u, int *depth, double *current_bnds_x,
            double *current_bnds_y, CCkdtree *thetree, double *datx,
-           double *daty, double *datw, CCrandstate *rstate);
+           double *daty, double *datw);
+
+static void
+    CCutil_rselect (int *arr, int l, int r, int m, double *coord);
 
 
 CC_PTRWORLD_ROUTINES (CCkdnode, kdnodealloc, kdnode_bulk_alloc, kdnodefree)
@@ -77,7 +61,7 @@ CC_PTRWORLD_ROUTINES (CCkdbnds, kdbndsalloc, kdbnds_bulk_alloc, kdbndsfree)
 CC_PTRWORLD_LEAKS_ROUTINE (CCkdbnds, kdbnds_check_leaks, x[0], double)
 
 int CCkdtree_build (CCkdtree *intree, int ncount, CCdatagroup *dat,
-        double *wcoord, CCrandstate *rstate)
+        double *wcoord)
 {
     int i;
     int depth;
@@ -117,7 +101,7 @@ int CCkdtree_build (CCkdtree *intree, int ncount, CCdatagroup *dat,
     current_bnds_y[1] =  BIGDOUBLE;
 
     thetree->root = build (0, ncount - 1, &depth, current_bnds_x,
-                     current_bnds_y, thetree, dat->x, dat->y, wcoord, rstate);
+                     current_bnds_y, thetree, dat->x, dat->y, wcoord);
     if (!(thetree->root)) {
         fprintf (stderr, "Unable to build CCkdtree\n");
         CC_FREE (thetree->perm, int);
@@ -175,7 +159,7 @@ static void kdtree_free_work (CCkdnode *p, CCptrworld *kdnode_world,
 
 static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
         double *current_bnds_y, CCkdtree *thetree, double *datx, double *daty,
-        double *datw, CCrandstate *rstate)
+        double *datw)
 {
     CCkdnode *p;
     int i, m;
@@ -217,13 +201,13 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
         m = (l + u) / 2;
         switch (p->cutdim) {
         case 0:
-            CCutil_rselect (thetree->perm, l, u, m, datx, rstate);
+            CCutil_rselect (thetree->perm, l, u, m, datx);
             p->cutval = datx[thetree->perm[m]];
 
             savebnd = current_bnds_x[1];
             current_bnds_x[1] = p->cutval;
             p->loson = build (l, m, depth, current_bnds_x, current_bnds_y,
-                              thetree, datx, daty, datw, rstate);
+                              thetree, datx, daty, datw);
             if (!p->loson) {
                 (*depth)--;
                 kdnodefree (&thetree->kdnode_world, p);
@@ -234,7 +218,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
             savebnd = current_bnds_x[0];
             current_bnds_x[0] = p->cutval;
             p->hison = build (m + 1, u, depth, current_bnds_x, current_bnds_y,
-                              thetree, datx, daty, datw, rstate);
+                              thetree, datx, daty, datw);
             if (!p->hison) {
                 (*depth)--;
                 kdnodefree (&thetree->kdnode_world, p);
@@ -244,13 +228,13 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
 
             break;
         case 1:
-            CCutil_rselect (thetree->perm, l, u, m, daty, rstate);
+            CCutil_rselect (thetree->perm, l, u, m, daty);
             p->cutval = daty[thetree->perm[m]];
 
             savebnd = current_bnds_y[1];
             current_bnds_y[1] = p->cutval;
             p->loson = build (l, m, depth, current_bnds_x, current_bnds_y,
-                              thetree, datx, daty, datw, rstate);
+                              thetree, datx, daty, datw);
             if (!p->loson) {
                 (*depth)--;
                 kdnodefree (&thetree->kdnode_world, p);
@@ -261,7 +245,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
             savebnd = current_bnds_y[0];
             current_bnds_y[0] = p->cutval;
             p->hison = build (m + 1, u, depth, current_bnds_x, current_bnds_y,
-                              thetree, datx, daty, datw, rstate);
+                              thetree, datx, daty, datw);
             if (!p->hison) {
                 (*depth)--;
                 kdnodefree (&thetree->kdnode_world, p);
@@ -271,11 +255,11 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
 
             break;
         case 2:
-            CCutil_rselect (thetree->perm, l, u, m, datw, rstate);
+            CCutil_rselect (thetree->perm, l, u, m, datw);
             p->cutval = datw[thetree->perm[m]];
 
             p->loson = build (l, m, depth, current_bnds_x, current_bnds_y,
-                              thetree, datx, daty, datw, rstate);
+                              thetree, datx, daty, datw);
             if (!p->loson) {
                 (*depth)--;
                 kdnodefree (&thetree->kdnode_world, p);
@@ -283,7 +267,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
             }
 
             p->hison = build (m + 1, u, depth, current_bnds_x, current_bnds_y,
-                              thetree, datx, daty, datw, rstate);
+                              thetree, datx, daty, datw);
             if (!p->hison) {
                 (*depth)--;
                 kdnodefree (&thetree->kdnode_world, p);
@@ -362,29 +346,13 @@ static unsigned char findmaxspread (int l, int u, CCkdtree *thetree,
 
 
 /****************************************************************************/
-/*                                                                          */
-/*                 ROUTINES FOR FINDING NEAREST NEIGHBORS                   */
-/*                                                                          */
-/*  (Based on Jon Bentley's paper "K-d trees for semidynamic point sets")   */
-/*                                                                          */
-/*                           TSP CODE                                       */
-/*                                                                          */
-/*                                                                          */
-/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
-/*  Date: February 24, 1995  (cofeb24)                                      */
-/*  Changes: August 6 (bico)  -  added wcoord to fixed radius search        */
-/*                                                                          */
-/*                                                                          */
-/*    EXPORTED FUNCTIONS:                                                   */
-/*                                                                          */
 /*  int CCkdtree_quadrant_k_nearest (CCkdtree *kt, int ncount, int k,       */
 /*      CCdatagroup *dat, double *wcoord,                                   */
-/*      int wantlist, int *ocount, int **olist, int silent,                 */
-/*      CCrandstate *rstate)                                                */
+/*      int wantlist, int *ocount, int **olist, int silent)                 */
 /*    RETURNS the quadrant k-nearest neighbor graph.                        */
 /*                                                                          */
 /*  int CCkdtree_node_k_nearest (CCkdtree *kt, int ncount, int n, int k,    */
-/*      CCdatagroup *dat, double *wcoord, int *list, CCrandstate *rstate)   */
+/*      CCdatagroup *dat, double *wcoord, int *list)                        */
 /*    RETURNS the k nearest points to point n.                              */
 /*      -The k points are return in list (and list must be allocated by     */
 /*       calling routine.                                                   */
@@ -392,8 +360,7 @@ static unsigned char findmaxspread (int l, int u, CCkdtree *thetree,
 /*       CCkdtree_build.                                                    */
 /*                                                                          */
 /*  int CCkdtree_node_quadrant_k_nearest (CCkdtree *kt, int ncount,         */
-/*      int n, int k, CCdatagroup *dat, double *wcoord, int *list,          */
-/*      CCrandstate *rstate)                                                */
+/*      int n, int k, CCdatagroup *dat, double *wcoord, int *list,)         */
 /*    RETURNS the quadrant k nearest point to point n.                      */
 /*      -see CCkdtree_node_k_nearest.                                       */
 /*                                                                          */
@@ -407,9 +374,6 @@ static unsigned char findmaxspread (int l, int u, CCkdtree *thetree,
 
 
 #define BIGDOUBLE (1e30)
-#define NEAR_HEAP_CUTOFF 100  /* When to switch from list to heap       */
-                              /* On an RS6000, the heap started winning */
-                              /* at 100 (by 200 it was 3 times faster)  */
 
 typedef struct shortedge {
     int end;
@@ -431,13 +395,12 @@ typedef struct intptr {
 
 static void
     node_k_nearest_work (CCkdtree *thetree, CCdatagroup *dat, double *datw,
-        CCkdnode *p, CCdheap *near_heap, int *heap_names, int *heap_count,
-        int target, int num, shortedge *nearlist, double *worst_on_list,
-        CCkdbnds *box);
+        CCkdnode *p, int target, int num, shortedge *nearlist,
+        double *worst_on_list, CCkdbnds *box);
 static int
     run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k, CCdatagroup *dat,
         double *wcoord, int wantlist, int *ocount, int **olist, int doquad,
-        int silent, CCrandstate *rstate),
+        int silent),
     put_in_table (int i, int j, int *added, intptr **table,
         CCptrworld *intptr_world),
     q_run_it (CCkdtree *thetree, CCdatagroup *dat, double *datw, int *llist,
@@ -453,16 +416,16 @@ CC_PTRWORLD_LEAKS_ROUTINE (intptr, intptr_check_leaks, this, int)
 
 int CCkdtree_quadrant_k_nearest (CCkdtree *kt, int ncount, int k,
         CCdatagroup *dat, double *wcoord, int wantlist, int *ocount,
-        int **olist, int silent, CCrandstate *rstate)
+        int **olist, int silent)
 {
     return run_kdtree_k_nearest (kt, ncount, k, dat, wcoord,
-                                 wantlist, ocount, olist, 1, silent, rstate);
+                                 wantlist, ocount, olist, 1, silent);
 }
 
 
 static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
         CCdatagroup *dat, double *wcoord, int wantlist, int *ocount,
-        int **olist, int doquad, int silent, CCrandstate *rstate)
+        int **olist, int doquad, int silent)
 {
     int i, n;
     intptr *ip, *ipnext;
@@ -493,7 +456,7 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
     }
 
     if (kt == (CCkdtree *) NULL) {
-        if (CCkdtree_build (&localkt, ncount, dat, wcoord, rstate)) {
+        if (CCkdtree_build (&localkt, ncount, dat, wcoord)) {
             fprintf (stderr, "Unable to build CCkdtree\n");
             return 1;
         }
@@ -520,13 +483,13 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
     for (n = 0; n < ncount; n++) {
         if (doquad) {
             if (CCkdtree_node_quadrant_k_nearest (mykt, ncount, n, k, dat,
-                       wcoord, list, rstate)) {
+                       wcoord, list)) {
                 rval = 1;
                 goto CLEANUP;
             }
         } else {
             if (CCkdtree_node_k_nearest (mykt, ncount, n, k, dat, wcoord,
-                                         list, rstate)) {
+                                         list)) {
                 rval = 1;
                 goto CLEANUP;
             }
@@ -631,7 +594,7 @@ static int put_in_table (int i, int j, int *added, intptr **table,
 }
 
 int CCkdtree_node_quadrant_k_nearest (CCkdtree *kt, int ncount, int n, int k,
-            CCdatagroup *dat, double *wcoord, int *list, CCrandstate *rstate)
+            CCdatagroup *dat, double *wcoord, int *list)
 {
     CCkdbnds localbnds;
     int i, lcount = 0;
@@ -642,7 +605,7 @@ int CCkdtree_node_quadrant_k_nearest (CCkdtree *kt, int ncount, int n, int k,
     int newtree = 0;
 
     if (kt == (CCkdtree *) NULL) {
-        if (CCkdtree_build (&localkt, ncount, dat, wcoord, rstate)) {
+        if (CCkdtree_build (&localkt, ncount, dat, wcoord)) {
             fprintf (stderr, "Unable to build CCkdtree\n");
             return 1;
         }
@@ -735,7 +698,7 @@ static int q_run_it (CCkdtree *thetree, CCdatagroup *dat, double *datw,
 }
 
 int CCkdtree_node_k_nearest (CCkdtree *kt, int ncount, int n, int k,
-        CCdatagroup *dat, double *wcoord, int *list, CCrandstate *rstate)
+        CCdatagroup *dat, double *wcoord, int *list)
 {
     CCkdtree localkt;
     CCkdtree *thetree;
@@ -743,7 +706,7 @@ int CCkdtree_node_k_nearest (CCkdtree *kt, int ncount, int n, int k,
     int rval = 0;
 
     if (kt == (CCkdtree *) NULL) {
-        if (CCkdtree_build (&localkt, ncount, dat, wcoord, rstate)) {
+        if (CCkdtree_build (&localkt, ncount, dat, wcoord)) {
             fprintf (stderr, "Unable to build CCkdtree\n");
             return 1;
         }
@@ -766,32 +729,16 @@ static int run_kdtree_node_k_nearest (CCkdtree *thetree, CCdatagroup *dat,
     int i;
     CCkdnode *p, *lastp;
     double diff;
-    CCdheap near_heap;
-    int *heap_names =  (int *) NULL;
-    int heap_count = 0;
     shortedge *nearlist = (shortedge *) NULL;
     double worst_on_list = BIGDOUBLE;
 
-    if (num >= NEAR_HEAP_CUTOFF) {
-        if (CCutil_dheap_init (&near_heap, num))
-            return 1;
-        heap_names = CC_SAFE_MALLOC (num, int);
-        if (!heap_names) {
-            CCutil_dheap_free (&near_heap);
-            return 1;
-        }
-        heap_count = 0;
-    } else {
-        nearlist = CC_SAFE_MALLOC (num + 1, shortedge);
-        if (!nearlist) {
-            CCutil_dheap_free (&near_heap);
-            CC_FREE (heap_names, int);
-            return 1;
-        }
-        for (i = 0; i < num; i++)
-            nearlist[i].length = BIGDOUBLE;
-        nearlist[num].length = -BIGDOUBLE;
+    nearlist = CC_SAFE_MALLOC (num + 1, shortedge);
+    if (!nearlist) {
+        return 1;
     }
+    for (i = 0; i < num; i++)
+        nearlist[i].length = BIGDOUBLE;
+    nearlist[num].length = -BIGDOUBLE;
 
 /*
     To do top down search just use:
@@ -800,9 +747,8 @@ static int run_kdtree_node_k_nearest (CCkdtree *thetree, CCdatagroup *dat,
 */
 
     p = thetree->bucketptr[target];
-    node_k_nearest_work (thetree, dat, datw, p, &near_heap, heap_names,
-                         &heap_count, target, num, nearlist, &worst_on_list,
-                         box);
+    node_k_nearest_work (thetree, dat, datw, p, target, num, nearlist,
+                         &worst_on_list, box);
     while (1) {
         lastp = p;
         p = p->father;
@@ -815,14 +761,12 @@ static int run_kdtree_node_k_nearest (CCkdtree *thetree, CCdatagroup *dat,
                if (worst_on_list > dtrunc(diff))
                    if (box == (CCkdbnds *) NULL || p->cutval <= box->x[1])
                        node_k_nearest_work (thetree, dat, datw, p->hison,
-                              &near_heap, heap_names, &heap_count, target,
-                              num, nearlist, &worst_on_list, box);
+                              target, num, nearlist, &worst_on_list, box);
             } else {
                if (worst_on_list > dtrunc(-diff))
                    if (box == (CCkdbnds *) NULL || p->cutval >= box->x[0])
                        node_k_nearest_work (thetree, dat, datw, p->loson,
-                              &near_heap, heap_names, &heap_count, target,
-                              num, nearlist, &worst_on_list, box);
+                              target, num, nearlist, &worst_on_list, box);
             }
             break;
         case 1:
@@ -831,26 +775,22 @@ static int run_kdtree_node_k_nearest (CCkdtree *thetree, CCdatagroup *dat,
                if (worst_on_list > dtrunc(diff))
                    if (box == (CCkdbnds *) NULL || p->cutval <= box->y[1])
                        node_k_nearest_work (thetree, dat, datw, p->hison,
-                              &near_heap, heap_names, &heap_count, target,
-                              num, nearlist, &worst_on_list, box);
+                              target, num, nearlist, &worst_on_list, box);
             } else {
                if (worst_on_list > dtrunc(-diff))
                    if (box == (CCkdbnds *) NULL || p->cutval >= box->y[0])
                        node_k_nearest_work (thetree, dat, datw, p->loson,
-                              &near_heap, heap_names, &heap_count, target,
-                              num, nearlist, &worst_on_list, box);
+                              target, num, nearlist, &worst_on_list, box);
             }
             break;
         case 2:
             if (lastp == p->loson) {
                 if (worst_on_list > p->cutval + datw[target])
                     node_k_nearest_work (thetree, dat, datw, p->hison,
-                              &near_heap, heap_names, &heap_count, target,
-                              num, nearlist, &worst_on_list, box);
+                              target, num, nearlist, &worst_on_list, box);
             } else {
-                node_k_nearest_work (thetree, dat, datw, p->loson, &near_heap,
-                              heap_names, &heap_count, target, num, nearlist,
-                              &worst_on_list, box);
+                node_k_nearest_work (thetree, dat, datw, p->loson,
+                              target, num, nearlist, &worst_on_list, box);
             }
             break;
         }
@@ -861,100 +801,49 @@ static int run_kdtree_node_k_nearest (CCkdtree *thetree, CCdatagroup *dat,
             break;
     }
 
-    if (num >= NEAR_HEAP_CUTOFF) {
-        if (heap_count < num) {
-            if (box == (CCkdbnds *) NULL) {
-                fprintf (stderr, "WARNING: There do not exist %d neighbors\n",
-                         num);
-            }
-            for (i = 0; i < heap_count; i++) {
-                list[i] = heap_names[i];
-            }
-            for (; i < num; i++)
-                list[i] = -1;
-        } else {
-            for (i = 0; i < num; i++)
-                list[i] = heap_names[i];
+    int ntot = 0;
+    for (i = 0; i < num; i++) {
+        if (nearlist[i].length < BIGDOUBLE)
+            list[ntot++] = nearlist[i].end;
+    }
+    if (ntot < num) {
+        if (box == (CCkdbnds *) NULL) {
+            fprintf (stderr, "WARNING: There do not exist %d neighbors\n",
+                        num);
         }
-    } else {
-        int ntot = 0;
-        for (i = 0; i < num; i++) {
-            if (nearlist[i].length < BIGDOUBLE)
-                list[ntot++] = nearlist[i].end;
-        }
-        if (ntot < num) {
-            if (box == (CCkdbnds *) NULL) {
-                fprintf (stderr, "WARNING: There do not exist %d neighbors\n",
-                         num);
-            }
-            for (i = ntot; i < num; i++)
-                list[i] = -1;
-        }
+        for (i = ntot; i < num; i++)
+            list[i] = -1;
     }
 
-    if (num >= NEAR_HEAP_CUTOFF) {
-        CC_FREE (heap_names, int);
-        CCutil_dheap_free (&near_heap);
-    } else {
-        CC_FREE (nearlist, shortedge);
-    }
+
+    CC_FREE (nearlist, shortedge);
     return 0;
 }
 
 static void node_k_nearest_work (CCkdtree *thetree, CCdatagroup *dat,
-        double *datw, CCkdnode *p, CCdheap *near_heap, int *heap_names,
-        int *heap_count, int target, int num, shortedge *nearlist,
+        double *datw, CCkdnode *p, int target, int num, shortedge *nearlist,
         double *worst_on_list, CCkdbnds *box)
 {
-    int i, h, k;
+    int i, k;
     double val, thisx, thisdist;
 
     if (p->bucket) {
-        if (num >= NEAR_HEAP_CUTOFF) {
-            for (i = p->lopt; i <= p->hipt; i++) {
-                if (thetree->perm[i] != target) {
-                    if (box == (CCkdbnds *) NULL ||
-                       (dat->x[thetree->perm[i]] >= box->x[0] &&
-                        dat->x[thetree->perm[i]] <= box->x[1] &&
-                        dat->y[thetree->perm[i]] >= box->y[0] &&
-                        dat->y[thetree->perm[i]] <= box->y[1])) {
-                        thisdist = Fedgelen (thetree->perm[i], target);
-                        if (*heap_count < num) {
-                            near_heap->key[*heap_count] = -thisdist;
-                            heap_names[*heap_count] = thetree->perm[i];
-                            /* this can't fail since the heap is big enough */
-                            CCutil_dheap_insert (near_heap, *heap_count);
-                            (*heap_count)++;
-                        } else if (*worst_on_list > thisdist) {
-                            h = CCutil_dheap_deletemin (near_heap);
-                            heap_names[h] = thetree->perm[i];
-                            near_heap->key[h] = -thisdist;
-                            /* this can't fail since the heap is big enough */
-                            CCutil_dheap_insert (near_heap, h);
-                            h = CCutil_dheap_findmin (near_heap);
-                            *worst_on_list = -near_heap->key[h];
+        for (i = p->lopt; i <= p->hipt; i++) {
+            if (thetree->perm[i] != target) {
+                if (box == (CCkdbnds *) NULL ||
+                    (dat->x[thetree->perm[i]] >= box->x[0] &&
+                    dat->x[thetree->perm[i]] <= box->x[1] &&
+                    dat->y[thetree->perm[i]] >= box->y[0] &&
+                    dat->y[thetree->perm[i]] <= box->y[1])) {
+                    thisdist = Fedgelen (thetree->perm[i], target);
+                    if (*worst_on_list > thisdist) {
+                        for (k = 0; nearlist[k+1].length > thisdist; k++) {
+                            nearlist[k].end = nearlist[k + 1].end;
+                            nearlist[k].length = nearlist[k + 1].length;
                         }
-                    }
-                }
-            }
-        } else {
-            for (i = p->lopt; i <= p->hipt; i++) {
-                if (thetree->perm[i] != target) {
-                    if (box == (CCkdbnds *) NULL ||
-                       (dat->x[thetree->perm[i]] >= box->x[0] &&
-                        dat->x[thetree->perm[i]] <= box->x[1] &&
-                        dat->y[thetree->perm[i]] >= box->y[0] &&
-                        dat->y[thetree->perm[i]] <= box->y[1])) {
-                        thisdist = Fedgelen (thetree->perm[i], target);
-                        if (*worst_on_list > thisdist) {
-                            for (k = 0; nearlist[k+1].length > thisdist; k++) {
-                                nearlist[k].end = nearlist[k + 1].end;
-                                nearlist[k].length = nearlist[k + 1].length;
-                            }
-                            nearlist[k].length = thisdist;
-                            nearlist[k].end = thetree->perm[i];
-                            *worst_on_list = nearlist[0].length;
-                        }
+                        nearlist[k].length = thisdist;
+                        nearlist[k].end = thetree->perm[i];
+                        *worst_on_list = nearlist[0].length;
                     }
                 }
             }
@@ -965,57 +854,47 @@ static void node_k_nearest_work (CCkdtree *thetree, CCdatagroup *dat,
         case 0:
             thisx = dat->x[target];
             if (thisx < val) {
-                node_k_nearest_work (thetree, dat, datw, p->loson, near_heap,
-                        heap_names, heap_count, target, num, nearlist,
-                        worst_on_list, box);
+                node_k_nearest_work (thetree, dat, datw, p->loson, target, num,
+                        nearlist, worst_on_list, box);
                 /* Truncation for floating point coords */
                 if (*worst_on_list > dtrunc(val - thisx))
                     if (box == (CCkdbnds *) NULL || val >= box->x[0])
                         node_k_nearest_work (thetree, dat, datw, p->hison,
-                               near_heap, heap_names, heap_count, target,
-                               num, nearlist, worst_on_list, box);
+                               target, num, nearlist, worst_on_list, box);
             } else {
-                node_k_nearest_work (thetree, dat, datw, p->hison, near_heap,
-                               heap_names, heap_count, target, num, nearlist,
-                               worst_on_list, box);
+                node_k_nearest_work (thetree, dat, datw, p->hison,
+                               target, num, nearlist, worst_on_list, box);
                 if (*worst_on_list > dtrunc(thisx - val))
                     if (box == (CCkdbnds *) NULL || val <= box->x[1])
                         node_k_nearest_work (thetree, dat, datw, p->loson,
-                               near_heap, heap_names, heap_count, target,
-                               num, nearlist, worst_on_list, box);
+                               target, num, nearlist, worst_on_list, box);
             }
             break;
         case 1:
             thisx = dat->y[target];
             if (thisx < val) {
-                node_k_nearest_work (thetree, dat, datw, p->loson, near_heap,
-                               heap_names, heap_count, target, num, nearlist,
-                               worst_on_list, box);
+                node_k_nearest_work (thetree, dat, datw, p->loson, target,
+                               num, nearlist, worst_on_list, box);
                 if (*worst_on_list > dtrunc(val - thisx))
                     if (box == (CCkdbnds *) NULL || val >= box->y[0])
                         node_k_nearest_work (thetree, dat, datw, p->hison,
-                               near_heap, heap_names, heap_count, target,
-                               num, nearlist, worst_on_list, box);
+                               target, num, nearlist, worst_on_list, box);
             } else {
-                node_k_nearest_work (thetree, dat, datw, p->hison, near_heap,
-                               heap_names, heap_count, target, num, nearlist,
-                               worst_on_list, box);
+                node_k_nearest_work (thetree, dat, datw, p->hison, target,
+                               num, nearlist, worst_on_list, box);
                 if (*worst_on_list > dtrunc(thisx - val))
                     if (box == (CCkdbnds *) NULL || val <= box->y[1])
                         node_k_nearest_work (thetree, dat, datw, p->loson,
-                               near_heap, heap_names, heap_count, target,
-                               num, nearlist, worst_on_list, box);
+                               target, num, nearlist, worst_on_list, box);
             }
             break;
         case 2:
             thisx = datw[target];
-            node_k_nearest_work (thetree, dat, datw, p->loson, near_heap,
-                               heap_names, heap_count, target, num, nearlist,
-                               worst_on_list, box);
+            node_k_nearest_work (thetree, dat, datw, p->loson, target,
+                               num, nearlist, worst_on_list, box);
             if (*worst_on_list > val + thisx)
-                node_k_nearest_work (thetree, dat, datw, p->hison, near_heap,
-                               heap_names, heap_count, target, num, nearlist,
-                               worst_on_list, box);
+                node_k_nearest_work (thetree, dat, datw, p->hison, target,
+                               num, nearlist, worst_on_list, box);
             break;
         }
     }
@@ -1030,4 +909,115 @@ static int ball_in_bounds (CCdatagroup *dat, CCkdbnds *bnds, int n,
         dtrunc(bnds->y[1] - dat->y[n]) < dist)
         return 0;
     return 1;
+}
+
+
+
+/****************************************************************************/
+/*  void CCutil_rselect (int *arr, int l, int r, int m,                     */
+/*      double *coord)                                                      */
+/*    arr - permutation that will be rearranged                             */
+/*    l,r - specify the range of arr that we are interested in              */
+/*    m - is the index into l,r that is the break point for the perm        */
+/*    coord - gives the keys that determine the ordering                    */
+/*                                                                          */
+/****************************************************************************/
+
+static void
+    select_split (int *arr, int n, double v, int *start, int *end,
+           double *coord),
+    select_sort (int *arr, int n, double *coord),
+    select_sort_dsample (double *samp, int n);
+
+/* NSAMPLES should be odd */
+#define NSAMPLES 3
+#define SORTSIZE 20
+
+void CCutil_rselect (int *arr, int l, int r, int m, double *coord)
+{
+    double samplevals[NSAMPLES];
+    int i;
+    int st, en;
+    int n;
+
+    arr += l;
+    n = r - l + 1;
+    m -= l;
+
+    while (n > SORTSIZE) {
+        for (i = 0; i < NSAMPLES; i++) {
+            samplevals[i] = coord[arr[rand() % n]];
+        }
+        select_sort_dsample (samplevals, NSAMPLES);
+        select_split (arr, n, samplevals[(NSAMPLES - 1) / 2], &st, &en, coord);
+        if (st > m) {
+            n = st;
+        } else if (en <= m) {
+            arr += en;
+            n -= en;
+            m -= en;
+        } else {
+            return;
+        }
+    }
+
+    select_sort (arr, n, coord);
+    return;
+}
+
+static void select_split (int *arr, int n, double v, int *start, int *end,
+                          double *coord)
+{
+    int i, j, k;
+    int t;
+
+    i = 0;
+    j = k = n;
+
+    while (i < j) {
+        if (coord[arr[i]] < v) {
+            i++;
+        } else if (coord[arr[i]] == v) {
+            j--;
+            CC_SWAP (arr[i], arr[j], t);
+        } else {
+            j--;
+            k--;
+            t = arr[i];
+            arr[i] = arr[j];
+            arr[j] = arr[k];
+            arr[k] = t;
+        }
+    }
+    *start = j;
+    *end = k;
+    return;
+}
+
+static void select_sort (int *arr, int n, double *coord)
+{
+    int i, j;
+    int t;
+
+    for (i = 1; i < n; i++) {
+        t = arr[i];
+        for (j = i; j > 0 && coord[arr[j - 1]] > coord[t]; j--) {
+            arr[j] = arr[j - 1];
+        }
+        arr[j] = t;
+    }
+}
+
+static void select_sort_dsample (double *samp, int n)
+{
+    int i, j;
+    double t;
+
+    for (i = 1; i < n; i++) {
+        t = samp[i];
+        for (j = i; j > 0 && samp[j - 1] > t; j--) {
+            samp[j] = samp[j - 1];
+        }
+        samp[j] = t;
+    }
 }

@@ -51,14 +51,13 @@ void
     CCkdtree_free (CCkdtree *kt);
 
 int
-    CCkdtree_build (CCkdtree *kt, int ncount, CCdatagroup *dat,
-        double *wcoord, CCrandstate *rstate),
+    CCkdtree_build (CCkdtree *kt, int ncount, CCdatagroup *dat, double *wcoord),
     CCkdtree_quadrant_k_nearest (CCkdtree *kt, int ncount, int k,
         CCdatagroup *dat, double *wcoord, int wantlist, int *ocount,
-        int **olist, int silent, CCrandstate *rstate),
+        int **olist, int silent),
     CCkdtree_node_k_nearest (CCkdtree *kt, int ncount, int n, int k,
-        CCdatagroup *dat, double *wcoord, int *list, CCrandstate *rstate),
+        CCdatagroup *dat, double *wcoord, int *list),
     CCkdtree_node_quadrant_k_nearest (CCkdtree *kt, int ncount, int n, int k,
-        CCdatagroup *dat, double *wcoord, int *list, CCrandstate *rstate);
+        CCdatagroup *dat, double *wcoord, int *list);
 
 #endif  /* __KDTREE_H */

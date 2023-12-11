@@ -14,19 +14,6 @@
 /****************************************************************************/
 
 /****************************************************************************/
-/*                                                                          */
-/*      TOUR MAINTANENCE ROUTINES FOR LIN-KERNIGHAN - Two-level Tree        */
-/*                                                                          */
-/*                             TSP CODE                                     */
-/*                                                                          */
-/*                                                                          */
-/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
-/*  Date: May 2, 1995                                                       */
-/*        May 1, 1998 (bico)                                                */
-/*                                                                          */
-/*                                                                          */
-/*    EXPORTED FUNCTIONS:                                                   */
-/*                                                                          */
 /*  int CClinkern_flipper_init (CClk_flipper *f, int ncount, int *cyc)      */
 /*    initializes flipper to an initial cycle given in cyc.                 */
 /*    returns 0 on success, nonzero on failure.                             */

@@ -14,23 +14,10 @@
 /****************************************************************************/
 
 /****************************************************************************/
-/*                                                                          */
-/*                     CHAINED LIN-KERNIGHAN                                */
-/*                                                                          */
-/*                           TSP CODE                                       */
-/*                                                                          */
-/*                                                                          */
-/*  Written by:  Applegate, Bixby, Chvatal, and Cook                        */
-/*  Date: March 22, 1995                                                    */
-/*        May 1, 1998 (bico)                                                */
-/*                                                                          */
-/*    EXPORTED FUNCTIONS:                                                   */
-/*                                                                          */
 /*  int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,           */
 /*      int *elist, int stallcount, int repeatcount, int *incycle,          */
 /*      int *outcycle, double *val                                          */
-/*      int silent,                 */
-/*      int kicktype, CCrandstate *rstate)               */
+/*      int silent, int kicktype)                                           */
 /*    RUNS Chained Lin-Kernighan.                                           */
 /*    -ncount (the number of nodes int the graph)                           */
 /*    -dat (coordinate dat)                                                 */
@@ -71,7 +58,6 @@
 #undef  FULL_MAK_MORTON
 #undef  NODE_INSERTIONS
 
-#undef  USE_HEAP
 #undef  MARK_NEIGHBORS      /* Mark the good-edge neighbors after swaps     */
 #define USE_LESS_MARKING    /* Do not mark the tour neighbors after swaps   */
 #define MARK_LEVEL 10       /* Number of tour neighbors after 4-swap kick   */
@@ -97,14 +83,10 @@ static const int weird_backtrack_count[3] = {4, 3, 3};
     (f)->counter--;                                                        \
 }
 
-#ifdef USE_HEAP
-#define MARK(xn, xQ, xF, xD, xG, xW)  turn ((xn), (xQ), (xF), (xD), (xG))
-#else
 #ifdef USE_LESS_MARKING
 #define MARK(xn, xQ, xF, xD, xG, xW)  turn ((xn), (xQ), (xW))
 #else
 #define MARK(xn, xQ, xF, xD, xG, xW)  turn ((xn), (xQ), (xF), (xW))
-#endif
 #endif
 
 #define markedge_add(n1, n2, E)    E->add_edges[n1 ^ n2] = 1
@@ -160,7 +142,6 @@ typedef struct graph {
     int  *weirdmark;
     int   weirdmagic;
     int   ncount;
-    CCrandstate *rstate;
 } graph;
 
 typedef struct distobj {
@@ -179,7 +160,6 @@ typedef struct aqueue {
     char *active;
     intptr *active_queue;
     intptr *bottom_active_queue;
-    CCdheap *h;
 } aqueue;
 
 
@@ -189,14 +169,10 @@ static void
        CCptrworld *intptr_world, CCptrworld *edgelook_world),
    look_ahead_noback (graph *G, distobj *D, adddel *E, CClk_flipper *F,
        int first, int last, int gain, edgelook *winner),
-#ifdef USE_HEAP
-   turn (int n, aqueue *Q, CClk_flipper *F, distobj *D, graph *G),
-#else
 #ifdef USE_LESS_MARKING
    turn (int n, aqueue *Q, CCptrworld *intptr_world),
 #else
    turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world),
-#endif
 #endif
    kickturn (int n, aqueue *Q, distobj *D, graph *G, CClk_flipper *F,
         CCptrworld *intptr_world),
@@ -209,7 +185,6 @@ static void
        int *t3, int *t4, int *t5, int *t6, int *t7, int *t8),
    find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
         int *t2, int *t3, int *t4, int *t5, int *t6, int *t7, int *t8),
-   randcycle (int ncount, int *cyc, CCrandstate *rstate),
    insertedge (graph *G, int n1, int n2, int w),
    initgraph (graph *G),
    freegraph (graph *G),
@@ -217,11 +192,7 @@ static void
    free_adddel (adddel *E),
    init_aqueue (aqueue *Q),
    free_aqueue (aqueue *Q, CCptrworld *intptr_world),
-#ifdef USE_HEAP
-   add_to_active_queue (int n, aqueue *Q, distobj *D, graph *G, CClk_flipper *F),
-#else
    add_to_active_queue (int n, aqueue *Q, CCptrworld *intptr_world),
-#endif
    init_distobj (distobj *D),
    free_distobj (distobj *D),
    linkern_free_world (CCptrworld *intptr_world, CCptrworld *edgelook_world),
@@ -231,8 +202,7 @@ static int
    buildgraph (graph *G, int ncount, int ecount, int *elist, distobj *D),
    repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
        int stallcount, int repeatcount, double *val, int silent, int kicktype,
-       CCptrworld *intptr_world, CCptrworld *edgelook_world,
-       CCrandstate *rstate),
+       CCptrworld *intptr_world, CCptrworld *edgelook_world),
    weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
        CClk_flipper *F, int gain, int t1, int t2, flipstack *fstack,
        CCptrworld *intptr_world, CCptrworld *edgelook_world),
@@ -247,10 +217,10 @@ static int
        flipstack *fstack, CCptrworld *intptr_world),
    find_geometric_four (graph *G, distobj *D, CClk_flipper *F, CCkdtree *kdt,
        int *t1, int *t2, int *t3, int *t4,
-       int *t5, int *t6, int *t7, int *t8, CCrandstate *rstate),
+       int *t5, int *t6, int *t7, int *t8),
    random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
        CCkdtree *kdt, int *delta, int kicktype, flipstack *win,
-       flipstack *fstack, CCptrworld *intptr_world, CCrandstate *rstate),
+       flipstack *fstack, CCptrworld *intptr_world),
    build_adddel (adddel *E, int ncount),
    build_aqueue (aqueue *Q, int ncount, CCptrworld *intptr_world),
    pop_from_active_queue (aqueue *Q, CCptrworld *intptr_world),
@@ -288,8 +258,7 @@ CC_PTRWORLD_LEAKS_ROUTINE(edgelook, edgelook_check_leaks, diff, int)
 
 int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
         int *elist, int stallcount, int repeatcount, int *incycle,
-        int *outcycle, double *val,
-        int silent, int kicktype, CCrandstate *rstate)
+        int *outcycle, double *val, int silent, int kicktype)
 {
     int rval = 0;
     int i;
@@ -309,7 +278,6 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     init_distobj (&D);
     CCptrworld_init (&intptr_world);
     CCptrworld_init (&edgelook_world);
-    G.rstate = rstate;
 
     if (ncount < 10 && repeatcount > 0) {
         printf ("Less than 10 nodes, setting repeatcount to 0\n");
@@ -357,7 +325,7 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     if (incycle) {
         for (i = 0; i < ncount; i++) tcyc[i] = incycle[i];
     } else {
-        randcycle (ncount, tcyc, G.rstate);
+        CCutil_randcycle (ncount, tcyc);
     }
     *val = cycle_length (ncount, tcyc, &D);
     if (silent == 0) {
@@ -365,7 +333,7 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     }
 
     rval = repeated_lin_kernighan (&G, &D, tcyc, stallcount, repeatcount,
-                 val, silent, kicktype, &intptr_world, &edgelook_world, rstate);
+                 val, silent, kicktype, &intptr_world, &edgelook_world);
     if (rval) {
         fprintf (stderr, "repeated_lin_kernighan failed\n"); goto CLEANUP;
     }
@@ -398,8 +366,7 @@ CLEANUP:
 
 static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         int stallcount, int count, double *val, int silent, int kicktype,
-        CCptrworld *intptr_world, CCptrworld *edgelook_world,
-        CCrandstate *rstate)
+        CCptrworld *intptr_world, CCptrworld *edgelook_world)
 {
     int rval    = 0;
     int round   = 0;
@@ -456,15 +423,6 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
     winstack.counter = 0;
     win_cycle[0] = -1;
 
-#ifdef USE_HEAP
-    {
-        int i;
-
-        for (i = 0; i < ncount; i++) {
-            add_to_active_queue (i, &Q, D, G, &F);
-        }
-    }
-#else
     {
         int *tcyc = (int *) NULL;
         int i;
@@ -475,16 +433,15 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
             rval = 1; goto CLEANUP;
         }
         /* init active_queue with random order */
-        randcycle (ncount, tcyc, G->rstate);
+        CCutil_randcycle (ncount, tcyc);
         for (i = 0; i < ncount; i++) {
             add_to_active_queue (tcyc[i], &Q, intptr_world);
         }
         CC_IFFREE (tcyc, int);
     }
-#endif
 
     if (kicktype == CC_LK_GEOMETRIC_KICK) {
-        rval = CCkdtree_build (&kdt, ncount, D->dat, (double *) NULL, rstate);
+        rval = CCkdtree_build (&kdt, ncount, D->dat, (double *) NULL);
         if (rval) {
             fprintf (stderr, "CCkdtree_build failed\n"); goto CLEANUP;
         } else {
@@ -514,7 +471,7 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
 
         if (IMPROVE_SWITCH == -1 || round < IMPROVE_SWITCH) {
             rval = random_four_swap (G, D, &Q, &F, &kdt, &delta, kicktype,
-                                     &winstack, &fstack, intptr_world, rstate);
+                                     &winstack, &fstack, intptr_world);
             if (rval) {
                 fprintf (stderr, "random_four_swap failed\n"); goto CLEANUP;
             }
@@ -536,7 +493,7 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         tdelta = t - best;
         heat *= HEAT_FACTOR;
         if (t < best || (t > best && exp (-tdelta/heat) >
-            (double) (CCutil_lprand (G->rstate) % ncount) / (double) ncount)) {
+            (double) (rand() % ncount) / (double) ncount)) {
 #else
 #ifdef ACCEPT_TIES
         if (t <= best) {
@@ -1611,7 +1568,7 @@ static double cycle_length (int ncount, int *cyc, distobj *D)
 
 static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
        CCkdtree *kdt, int *delta, int kicktype, flipstack *win,
-       flipstack *fstack, CCptrworld *intptr_world, CCrandstate *rstate)
+       flipstack *fstack, CCptrworld *intptr_world)
 {
     int rval = 0;
     int t1, t2, t3, t4, t5, t6, t7, t8, temp;
@@ -1628,7 +1585,7 @@ static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
         break;
     case CC_LK_GEOMETRIC_KICK:
         rval = find_geometric_four (G, D, F, kdt, &t1, &t2, &t3, &t4,
-                                                  &t5, &t6, &t7, &t8, rstate);
+                                                  &t5, &t6, &t7, &t8);
         if (rval) {
             fprintf (stderr, "find_geometric_four failed\n"); return 1;
         }
@@ -1697,7 +1654,7 @@ static void first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1,
     int ncount = G->ncount;
     edge **goodlist = G->goodlist;
 
-    try1 = CCutil_lprand (G->rstate) % ncount;
+    try1 = rand() % ncount;
     next = CClinkern_flipper_next (F, try1);
     prev = CClinkern_flipper_prev (F, try1);
     nextl = Edgelen (try1, next, D);
@@ -1713,7 +1670,7 @@ static void first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1,
     }
 
     for (i = 0; i < longcount; i++) {
-        try1 = CCutil_lprand (G->rstate) % ncount;
+        try1 = rand() % ncount;
         next = CClinkern_flipper_next (F, try1);
         prev = CClinkern_flipper_prev (F, try1);
         nextl = Edgelen (try1, next, D);
@@ -1733,7 +1690,7 @@ static void first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1,
         }
     }
 #else   /* LONG_KICKER */
-    *t1 = CCutil_lprand (G->rstate) % G->ncount;
+    *t1 = rand() % G->ncount;
     *t2 = CClinkern_flipper_next (F, *t1);
 #endif  /* LONG_KICKER */
 }
@@ -1745,18 +1702,18 @@ static void find_random_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
 
     first_kicker (G, D, F, t1, t2);
     do {
-        *t3 = CCutil_lprand (G->rstate) % ncount;
+        *t3 = rand() % ncount;
         *t4 = CClinkern_flipper_next (F, *t3);
     } while (*t3 == *t1 || *t3 == *t2 || *t4 == *t1);
 
     do {
-        *t5 = CCutil_lprand (G->rstate) % ncount;
+        *t5 = rand() % ncount;
         *t6 = CClinkern_flipper_next (F, *t5);
     } while (*t5 == *t1 || *t5 == *t2 || *t5 == *t3 || *t5 == *t4 ||
              *t6 == *t1 || *t6 == *t3);
 
     do {
-        *t7 = CCutil_lprand (G->rstate) % ncount;
+        *t7 = rand() % ncount;
         *t8 = CClinkern_flipper_next (F, *t7);
     } while (*t7 == *t1 || *t7 == *t2 ||
              *t7 == *t3 || *t7 == *t4 || *t7 == *t5 || *t7 == *t6 ||
@@ -1784,7 +1741,7 @@ TRYAGAIN:
     for (k = 0; k < RAND_TRYS; k++) tdist[k] = BIGINT;
     tdist[RAND_TRYS] = -BIGINT;
     for (i = 0; i < count; i++) {
-        try1 = CCutil_lprand (G->rstate) % G->ncount;
+        try1 = rand() % G->ncount;
         trydist = Edgelen (try1, s1, D);
         if (trydist < tdist[0]) {
             for (k = 0; tdist[k + 1] > trydist; k++) {
@@ -1827,7 +1784,7 @@ TRYAGAIN:
 
 static int find_geometric_four (graph *G, distobj *D, CClk_flipper *F,
         CCkdtree *kdt, int *t1, int *t2, int *t3, int *t4, int *t5, int *t6,
-        int *t7, int *t8, CCrandstate *rstate)
+        int *t7, int *t8)
 {
     int neigh[GEO_MAX];
     int temp, i, k, s1, s2, s3, s4, s5, s6, s7, s8;
@@ -1839,13 +1796,13 @@ static int find_geometric_four (graph *G, distobj *D, CClk_flipper *F,
     if (trys > G->ncount - 1) trys = G->ncount - 1;
 
     rval = CCkdtree_node_k_nearest (kdt, G->ncount, s1, trys, D->dat,
-                                    (double *) NULL, neigh, rstate);
+                                    (double *) NULL, neigh);
     if (rval) {
         fprintf (stderr, "CCkdtree_node_k_nearest failed\n"); return rval;
     }
 
     for (i = trys; i > trys - 9; i--) {
-        k = CCutil_lprand (G->rstate) % i;
+        k = rand() % i;
         CC_SWAP (neigh[i - 1], neigh[k], temp);
     }
 
@@ -1881,7 +1838,7 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
     int old, n, i, j;
 
 /*
-    s1 = CCutil_lprand (G->rstate) % G->ncount;
+    s1 = rand() % G->ncount;
     s2 = CClinkern_flipper_next (F, s1);
 */
 
@@ -1892,7 +1849,7 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
         n = s2;
 
         for (i = 0;  i < WALK_STEPS; i++) {
-            j = CCutil_lprand (G->rstate) % (G->degree[n]);
+            j = rand() % (G->degree[n]);
             if (old != G->goodlist[n][j].other) {
                 old = n;
                 n = G->goodlist[n][j].other;
@@ -1903,7 +1860,7 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
 
         n = s4;
         for (i = 0; i < WALK_STEPS; i++) {
-            j = CCutil_lprand (G->rstate) % (G->degree[n]);
+            j = rand() % (G->degree[n]);
             if (old != G->goodlist[n][j].other) {
                 old = n;
                 n = G->goodlist[n][j].other;
@@ -1914,7 +1871,7 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
 
         n = s6;
         for (i = 0; i < WALK_STEPS; i++) {
-            j = CCutil_lprand (G->rstate) % (G->degree[n]);
+            j = rand() % (G->degree[n]);
             if (old != G->goodlist[n][j].other) {
                 old = n;
                 n = G->goodlist[n][j].other;
@@ -1935,12 +1892,6 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
     *t5 = s5;  *t6 = s6;  *t7 = s7;  *t8 = s8;
 }
 
-#ifdef USE_HEAP
-
-static void turn (int n, aqueue *Q, CClk_flipper *F, distobj *D, graph *G)
-
-#else  /* USE_HEAP */
-
 #ifdef USE_LESS_MARKING
 
 static void turn (int n, aqueue *Q, CCptrworld *intptr_world)
@@ -1950,25 +1901,15 @@ static void turn (int n, aqueue *Q, CCptrworld *intptr_world)
 static void turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world)
 
 #endif /* USE_LESS_MARKING */
-#endif /* USE_HEAP */
 {
-#ifdef USE_HEAP
-    add_to_active_queue (n, Q, D, G, F);
-#else
     add_to_active_queue (n, Q, intptr_world);
-#endif
 
 #ifdef MARK_NEIGHBORS
     {
        int i = 0;
        for (i = 0; i < bigG->degree[n]; i++) {
-           if (CCutil_lprand (G->rstate) % 2) {
-#ifdef USE_HEAP
-               add_to_active_queue (G->goodlist[n][i].other, Q, D, G, F);
-#else
+           if (rand() % 2) {
                add_to_active_queue (bigG->goodlist[n][i].other, Q, intptr_world);
-
-#endif
            }
        }
    }
@@ -1976,16 +1917,6 @@ static void turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world)
 #ifndef USE_LESS_MARKING
    {
         int k;
-#ifdef USE_HEAP
-        k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, D, G, F);
-        k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, D, G, F);
-        k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, D, G, F);
-        k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, D, G, F);
-#else
         k = CClinkern_flipper_next (F, n);
         add_to_active_queue (k, Q, intptr_world);
         k = CClinkern_flipper_next (F, k);
@@ -1994,7 +1925,6 @@ static void turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world)
         add_to_active_queue (k, Q, intptr_world);
         k = CClinkern_flipper_prev (F, k);
         add_to_active_queue (k, Q, intptr_world);
-#endif /* USE_HEAP */
    }
 #endif
 #endif
@@ -2005,20 +1935,6 @@ static void kickturn (int n, aqueue *Q, distobj *D,
 {
     (void)D;
     (void)G;
-#ifdef USE_HEAP
-    add_to_active_queue (n, Q, D, G, F);
-    {
-        int k;
-        k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, D, G, F);
-        k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, D, G, F);
-        k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, D, G, F);
-        k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, D, G, F);
-    }
-#else
     add_to_active_queue (n, Q, intptr_world);
     {
         int k;
@@ -2031,7 +1947,6 @@ static void kickturn (int n, aqueue *Q, distobj *D,
         k = CClinkern_flipper_prev (F, k);
         add_to_active_queue (k, Q, intptr_world);
     }
-#endif
 }
 
 static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
@@ -2041,25 +1956,6 @@ static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
 
     (void)D;
 
-#ifdef USE_HEAP
-    add_to_active_queue (n, Q, D, G, F);
-
-    if (tonext) {
-        for (i = 0, k = n; i < MARK_LEVEL; i++) {
-            k = CClinkern_flipper_next (F, k);
-            add_to_active_queue (k, Q, D, G, F);
-        }
-    } else {
-        for (i = 0, k = n; i < MARK_LEVEL; i++) {
-            k = CClinkern_flipper_prev (F, k);
-            add_to_active_queue (k, Q, D, G, F);
-        }
-    }
-
-    for (i = 0; i < G->degree[n]; i++) {
-        add_to_active_queue (G->goodlist[n][i].other, Q, D, G, F);
-    }
-#else
     add_to_active_queue (n, Q, intptr_world);
     if (tonext) {
         for (i = 0, k = n; i < MARK_LEVEL; i++) {
@@ -2075,18 +1971,6 @@ static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
 
     for (i = 0; i < G->degree[n]; i++) {
         add_to_active_queue (G->goodlist[n][i].other, Q, intptr_world);
-    }
-#endif
-}
-
-static void randcycle (int ncount, int *cyc, CCrandstate *rstate)
-{
-    int i, k, temp;
-
-    for (i = 0; i < ncount; i++) cyc[i] = i;
-    for (i = ncount; i > 1; i--) {
-        k = CCutil_lprand (rstate) % i;
-        CC_SWAP (cyc[i - 1], cyc[k], temp);
     }
 }
 
@@ -2260,7 +2144,6 @@ static void init_aqueue (aqueue *Q)
     Q->active = (char *) NULL;
     Q->active_queue = (intptr *) NULL;
     Q->bottom_active_queue = (intptr *) NULL;
-    Q->h = (CCdheap *) NULL;
 }
 
 static void free_aqueue (aqueue *Q, CCptrworld *intptr_world)
@@ -2270,10 +2153,6 @@ static void free_aqueue (aqueue *Q, CCptrworld *intptr_world)
         intptr_listfree (intptr_world, Q->active_queue);
         Q->active_queue = (intptr *) NULL;
         Q->bottom_active_queue = (intptr *) NULL;
-        if (Q->h) {
-            CCutil_dheap_free (Q->h);
-            Q->h = (CCdheap *) NULL;
-        }
     }
 }
 
@@ -2291,18 +2170,6 @@ static int build_aqueue (aqueue *Q, int ncount, CCptrworld *intptr_world)
     }
     for (i = 0; i < ncount; i++) Q->active[i] = 0;
 
-#ifdef USE_HEAP
-    Q->h = CC_SAFE_MALLOC (1, CCdheap);
-    if (Q->h == (CCdheap *) NULL) {
-        fprintf (stderr, "out of memory in build_aqueue\n");
-        rval = 1; goto CLEANUP;
-    }
-    rval = CCutil_dheap_init (Q->h, ncount);
-    if (rval) {
-        fprintf (stderr, "CCutil_dheap_init failed\n"); goto CLEANUP;
-    }
-#endif
-
 CLEANUP:
 
     if (rval) {
@@ -2310,31 +2177,6 @@ CLEANUP:
     }
     return rval;
 }
-
-#ifdef    USE_HEAP
-static void add_to_active_queue (int n, aqueue *Q, distobj *D, graph *G,
-        CClk_flipper *F)
-{
-    if (Q->active[n] == 0) {
-        int next = CClinkern_flipper_next (F, n);
-        Q->active[n] = 1;
-        Q->h->key[n] = G->goodlist[n][0].weight - Edgelen (n, next, D);
-        CCutil_dheap_insert (Q->h, n);
-    }
-}
-
-static int pop_from_active_queue (aqueue *Q, CCptrworld *intptr_world)
-{
-    int n;
-
-    n = CCutil_dheap_deletemin (Q->h);
-    if (n != -1) {
-        Q->active[n] = 0;
-    }
-    return n;
-}
-
-#else  /* USE_HEAP */
 
 static void add_to_active_queue (int n, aqueue *Q, CCptrworld *intptr_world)
 {
@@ -2374,7 +2216,6 @@ static int pop_from_active_queue (aqueue *Q, CCptrworld *intptr_world)
     }
     return n;
 }
-#endif /* USE_HEAP */
 
 static void init_distobj (distobj *D)
 {

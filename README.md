@@ -12,4 +12,5 @@ and Block2, because they are not the core of EAX and make rewriting more complic
 ## CLK
 Chained Lin-Kernighan is an efficient implementation of Lin-Kernighan algorithm.
 For personal study use, I copy the code from:
-'https://www.math.uwaterloo.ca/tsp/concorde/downloads/codes/src/co031219.tgz'.
+'https://www.math.uwaterloo.ca/tsp/concorde/downloads/codes/src/co031219.tgz',
+written by: Applegate, Bixby, Chvatal, and Cook.

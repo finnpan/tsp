@@ -31,6 +31,7 @@
 #include "kdtree.h"
 
 #define BIGDOUBLE (1e30)
+#define CC_BIX_GETOPT_UNKNOWN -3038
 
 
 static int norm = CC_EUCLIDEAN;
@@ -46,8 +47,10 @@ static int
    print_command (int ac, char **av),
    parseargs (int, char **);
 static void
-   randcycle (int ncount, int *cyc, CCrandstate *rstate),
    usage (char *f);
+static int
+    CCutil_bix_getopt (int ac, char **av, const char *def,
+                       int *p_optind, char **p_optarg);
 
 
 
@@ -59,20 +62,20 @@ int main (int ac, char **av)
     int tempcount, *templist;
     int *incycle = (int *) NULL, *outcycle = (int *) NULL;
     CCdatagroup dat;
-    int rval = 0;
-    int seed, in_repeater;
-    CCrandstate rstate;
+    int rval = 0, in_repeater;
     int quadtry = 3;
 
-    CCutil_init_datagroup (&dat);
-
     rval = print_command (ac, av);
-    CCcheck_rval (rval, "print_command failed");
+    if (rval) {
+        fprintf (stderr, "%s\n", "print_command failed");
+        goto CLEANUP;
+    }
 
-    seed = (int) time (0);
+    unsigned int seed = (unsigned int) time (0);
+    srand(seed);
+
     if (parseargs (ac, av))
         return 1;
-    CCutil_sprand (seed, &rstate);
 
     printf ("Chained Lin-Kernighan with seed %d\n", seed);
     fflush (stdout);
@@ -89,7 +92,7 @@ int main (int ac, char **av)
         rval = 1;
         goto CLEANUP;
     }
-    CCutil_dat_getnorm (&dat, &norm);
+    norm = dat.norm;
 
     in_repeater = ncount;
 
@@ -103,8 +106,7 @@ int main (int ac, char **av)
         CCkdtree localkt;
         double kzeit = CCutil_zeit ();
 
-        if (CCkdtree_build (&localkt, ncount, &dat, (double *) NULL,
-                            &rstate)) {
+        if (CCkdtree_build (&localkt, ncount, &dat, (double *) NULL)) {
             fprintf (stderr, "CCkdtree_build failed\n");
             rval = 1;
             goto CLEANUP;
@@ -114,8 +116,7 @@ int main (int ac, char **av)
 
         kzeit = CCutil_zeit ();
         if (CCkdtree_quadrant_k_nearest (&localkt, ncount, quadtry,
-                &dat, (double *) NULL, 1, &tempcount, &templist,
-                run_silently, &rstate)) {
+                &dat, (double *) NULL, 1, &tempcount, &templist,run_silently)) {
             fprintf (stderr, "CCkdtree-quad nearest code failed\n");
             rval = 1;
             goto CLEANUP;
@@ -127,7 +128,7 @@ int main (int ac, char **av)
         }
 
         kzeit = CCutil_zeit ();
-        randcycle (ncount, incycle, &rstate);
+        CCutil_randcycle (ncount, incycle);
         if (!run_silently) {
             printf ("Time to grow tour: %.2f\n",
                     CCutil_zeit () - kzeit);
@@ -135,7 +136,7 @@ int main (int ac, char **av)
         }
         CCkdtree_free (&localkt);
     } else if ((norm & CC_NORM_BITS) == CC_X_NORM_TYPE) {
-        assert(0);
+        // do nothing
     } else {
         assert(0);
     }
@@ -151,8 +152,7 @@ int main (int ac, char **av)
     do {
         printf ("\nStarting Run %d\n", k);
         if (CClinkern_tour (ncount, &dat, tempcount, templist, 100000000,
-                in_repeater, incycle, outcycle, &val, run_silently,
-                kick_type, &rstate)) {
+                in_repeater, incycle, outcycle, &val, run_silently, kick_type)) {
             fprintf (stderr, "CClinkern_tour failed\n");
             rval = 1;
             goto CLEANUP;
@@ -236,7 +236,11 @@ static int print_command (int ac, char **av)
         cmdlen += strlen(av[i]) + 1;
     }
     cmdout = CC_SAFE_MALLOC (cmdlen, char);
-    CCcheck_NULL (cmdout, "out of memory in print_command");
+    if (!cmdout) {
+        fprintf (stderr, "%s\n", "out of memory in print_command");
+        rval = 1;
+        goto CLEANUP;
+    }
 
     cmdlen = 0;
     for (i=0; i<ac; i++) {
@@ -254,15 +258,55 @@ CLEANUP:
     return rval;
 }
 
-static void randcycle (int ncount, int *cyc, CCrandstate *rstate)
+static int CCutil_bix_getopt (int ac, char **av, const char *def,
+        int *p_optind, char **p_optarg)
 {
-    int i, k, temp;
+    int c;
+    char *sp = av[*p_optind];
+    char bwarn[2];
 
-    for (i = 0; i < ncount; i++)
-        cyc[i] = i;
-
-    for (i = ncount; i > 1; i--) {
-        k = CCutil_lprand (rstate) % i;
-        CC_SWAP (cyc[i - 1], cyc[k], temp);
+    if (*p_optind < 1 || *p_optind >= ac) {
+        *p_optind = ac;
+        return (EOF);
+    }
+    if ((int) *sp != (int) '-')
+        return (EOF);
+    if ((int) *(sp + 1) == (int) '-') {
+        (*p_optind)++;
+        return (EOF);
+    }
+    (av[*p_optind])++;
+    sp++;
+    while ((int) *sp != (int) *def && (int) *def != (int) '\0')
+            def++;
+    if ((int) *def == (int) '\0') {
+        *p_optind = ac;
+        bwarn[0] = *sp;                          /* Bico: February 8, 1995 */
+        bwarn[1] = '\0';
+        printf ("Illegal option: -%s\n", bwarn);
+        return CC_BIX_GETOPT_UNKNOWN;
+    }
+    if ((int) *(def + 1) != (int) ':') {
+        c = *sp;
+        if ((int) *(sp + 1) != (int) '\0')
+            *sp = '-';
+        else
+            (*p_optind)++;
+        return (c);
+    } else {
+        if ((int) *(sp + 1) != (int) '\0') {
+            *p_optarg = sp + 1;
+            c = *sp;
+            (*p_optind)++;
+            return (c);
+        } else if (*p_optind >= ac - 1) {
+            *p_optind = ac;
+            return (EOF);
+        } else {
+            *p_optarg = av[*p_optind + 1];
+            c = *sp;
+            *p_optind += 2;
+            return (c);
+        }
     }
 }

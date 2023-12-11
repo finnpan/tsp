@@ -28,7 +28,6 @@
 int
     CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
         int *elist, int stallcount, int repeatcount, int *incycle,
-        int *outcycle, double *val, int silent, int kicktype,
-        CCrandstate *rstate);
+        int *outcycle, double *val, int silent, int kicktype);
 
 #endif  /* __LINKERN_H */
