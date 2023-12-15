@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <math.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct CClk_parentnode {
     struct CClk_parentnode *adj[2];
     struct CClk_childnode  *ends[2];
@@ -46,6 +50,8 @@ typedef struct CClk_flipper {
 
 
 int
+    CClinkern_flipper_init_0 (CClk_flipper *f, int ncount),
+    CClinkern_flipper_init_1 (CClk_flipper *f, int ncount, int *cyc),
     CClinkern_flipper_init (CClk_flipper *f, int ncount, int *cyc),
     CClinkern_flipper_next (CClk_flipper *f, int x),
     CClinkern_flipper_prev (CClk_flipper *f, int x),
@@ -54,5 +60,9 @@ void
     CClinkern_flipper_flip (CClk_flipper *F, int x, int y),
     CClinkern_flipper_cycle (CClk_flipper *F, int *x),
     CClinkern_flipper_finish (CClk_flipper *F);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* __FLIPPER_H */

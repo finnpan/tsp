@@ -88,10 +88,17 @@ static int
 
 int CClinkern_flipper_init (CClk_flipper *F, int ncount, int *cyc)
 {
-    int i, j, cind, remain;
+    int rval = CClinkern_flipper_init_0(F, ncount);
+    if (rval == 0) {
+        rval = CClinkern_flipper_init_1(F, ncount, cyc);
+    }
+    return rval;
+}
+
+int CClinkern_flipper_init_0 (CClk_flipper *F, int ncount)
+{
+    int i, j, remain;
     int rval = 0;
-    CClk_childnode *c, *cprev;
-    CClk_parentnode *p;
 
     init_flipper (F);
     rval = build_flipper (F, ncount);
@@ -120,6 +127,21 @@ int CClinkern_flipper_init (CClk_flipper *F, int ncount, int *cyc)
         rval = 1; goto CLEANUP;
     }
 
+    CLEANUP:
+
+    if (rval) {
+        free_flipper (F);
+    }
+    return rval;
+}
+
+int CClinkern_flipper_init_1 (CClk_flipper *F, int ncount, int *cyc)
+{
+    int i, j, cind;
+    int rval = 0;
+    CClk_childnode *c, *cprev;
+    CClk_parentnode *p;
+
     c = &(F->children[cyc[ncount - 1]]);
     for (i=0,p=F->parents,cind=0; i < F->nsegments; p++,i++) {
         p->id = i;
@@ -142,11 +164,6 @@ int CClinkern_flipper_init (CClk_flipper *F, int ncount, int *cyc)
     F->parents[0].adj[0] = &(F->parents[F->nsegments - 1]);
     F->parents[F->nsegments - 1].adj[1] = &(F->parents[0]);
 
-CLEANUP:
-
-    if (rval) {
-        free_flipper (F);
-    }
     return rval;
 }
 
