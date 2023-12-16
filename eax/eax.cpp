@@ -1,5 +1,5 @@
 /*
-License: see tsp.h
+License: see util.h
  */
 
 #include "eax.h"

@@ -373,8 +373,6 @@ static unsigned char findmaxspread (int l, int u, CCkdtree *thetree,
 /****************************************************************************/
 
 
-#define BIGDOUBLE (1e30)
-
 typedef struct shortedge {
     int end;
     double length;

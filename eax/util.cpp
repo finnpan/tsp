@@ -1,8 +1,8 @@
 /*
-License: see tsp.h
+License: see util.h
  */
 
-#include "tsp.h"
+#include "util.h"
 
 Indi::Indi()
     : _numCity(0), _link(nullptr), _cost(std::numeric_limits<EvalType>::max())

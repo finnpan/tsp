@@ -1,10 +1,10 @@
 /*
-License: see tsp.h
+License: see util.h
  */
 
 #pragma once
 
-#include "tsp.h"
+#include "util.h"
 
 /* TODO:
  * 1. Diversity preservation: Entropy

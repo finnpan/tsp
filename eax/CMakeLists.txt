@@ -14,7 +14,7 @@ link_libraries(${base_lib})
 
 
 set(library_name eax)
-add_library(${library_name} STATIC eax.cpp tsp.cpp)
+add_library(${library_name} STATIC eax.cpp util.cpp)
 link_libraries(${library_name})
 
 

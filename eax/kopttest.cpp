@@ -1,7 +1,7 @@
 #include <ctime>
 
 #define private public
-#include "tsp.h"
+#include "util.h"
 #undef private
 
 int main(int argc, char* argv[])
