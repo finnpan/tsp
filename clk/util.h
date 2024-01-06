@@ -46,11 +46,8 @@ void
     CCutil_init_datagroup (CCdatagroup *dat),
     CCutil_freedatagroup (CCdatagroup *dat);
 
-#define CC_KD_NORM_TYPE    128          /* Kdtrees work      */
-#define CC_X_NORM_TYPE     256          /* Old nearest works */
-#define CC_NORM_BITS      (CC_KD_NORM_TYPE | CC_X_NORM_TYPE)
-#define CC_EUCLIDEAN_CEIL (0 |   CC_KD_NORM_TYPE)
-#define CC_EUCLIDEAN      (1 |   CC_KD_NORM_TYPE)
-#define CC_ATT            (2 |    CC_X_NORM_TYPE)
+#define CC_EUCLIDEAN_CEIL (0)
+#define CC_EUCLIDEAN      (1)
+#define CC_ATT            (2)
 
 #endif /* __UTIL_H */

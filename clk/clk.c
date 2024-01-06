@@ -28,44 +28,37 @@
 /****************************************************************************/
 
 #include "linkern.h"
-#include "kdtree.h"
 
 #define BIGDOUBLE (1e30)
 #define CC_BIX_GETOPT_UNKNOWN -3038
 
 
-static int norm = CC_EUCLIDEAN;
 static int run_silently = 1;
 static int kick_type = CC_LK_WALK_KICK;
 static int number_runs = 0;
 static char *nodefile = (char *) NULL;
 
 
-int
-   main (int, char **);
+int main (int, char **);
+static void usage (char *f);
 static int
    print_command (int ac, char **av),
-   parseargs (int, char **);
-static void
-   usage (char *f);
-static int
-    CCutil_bix_getopt (int ac, char **av, const char *def,
+   parseargs (int, char **),
+   CCutil_bix_getopt (int ac, char **av, const char *def,
                        int *p_optind, char **p_optarg);
-
 
 
 int main (int ac, char **av)
 {
-    int k, ncount;
+    int ncount;
     double val, best;
-    double startzeit;
-    int tempcount, *templist;
+    double startzeit, kzeit;
+    int edgeNum, *edgeList = (int *) NULL;
     int *incycle = (int *) NULL, *outcycle = (int *) NULL;
+    int* *near = (int* *) NULL;
     CCdatagroup dat;
-    int rval = 0, in_repeater;
-    int quadtry = 3;
 
-    rval = print_command (ac, av);
+    int rval = print_command (ac, av);
     if (rval) {
         fprintf (stderr, "%s\n", "print_command failed");
         goto CLEANUP;
@@ -74,8 +67,7 @@ int main (int ac, char **av)
     unsigned int seed = (unsigned int) time (0);
     srand(seed);
 
-    if (parseargs (ac, av))
-        return 1;
+    if (parseargs (ac, av)) return 1;
 
     printf ("Chained Lin-Kernighan with seed %d\n", seed);
     fflush (stdout);
@@ -92,9 +84,8 @@ int main (int ac, char **av)
         rval = 1;
         goto CLEANUP;
     }
-    norm = dat.norm;
 
-    in_repeater = ncount;
+    int in_repeater = ncount;
 
     incycle = CC_SAFE_MALLOC (ncount, int);
     if (!incycle) {
@@ -102,44 +93,71 @@ int main (int ac, char **av)
         goto CLEANUP;
     }
 
-    if ((norm & CC_NORM_BITS) == CC_KD_NORM_TYPE) {
-        CCkdtree localkt;
-        double kzeit = CCutil_zeit ();
-
-        if (CCkdtree_build (&localkt, ncount, &dat, (double *) NULL)) {
-            fprintf (stderr, "CCkdtree_build failed\n");
-            rval = 1;
-            goto CLEANUP;
-        }
-        printf ("Time to build kdtree: %.2f\n", CCutil_zeit () - kzeit);
-        fflush (stdout);
-
-        kzeit = CCutil_zeit ();
-        if (CCkdtree_quadrant_k_nearest (&localkt, ncount, quadtry,
-                &dat, (double *) NULL, 1, &tempcount, &templist,run_silently)) {
-            fprintf (stderr, "CCkdtree-quad nearest code failed\n");
-            rval = 1;
-            goto CLEANUP;
-        }
-        if (!run_silently) {
-            printf ("Time to find quad %d-nearest: %.2f\n",
-                    quadtry, CCutil_zeit () - kzeit);
-            fflush (stdout);
-        }
-
-        kzeit = CCutil_zeit ();
-        CCutil_randcycle (ncount, incycle);
-        if (!run_silently) {
-            printf ("Time to grow tour: %.2f\n",
-                    CCutil_zeit () - kzeit);
-            fflush (stdout);
-        }
-        CCkdtree_free (&localkt);
-    } else if ((norm & CC_NORM_BITS) == CC_X_NORM_TYPE) {
-        // do nothing
-    } else {
-        assert(0);
+    /* find k-nearest */
+    kzeit = CCutil_zeit ();
+    const int kNum = 50;
+    double minCost;
+    int nearCity;
+    near = CC_SAFE_MALLOC (ncount, int*);
+    for (int ci = 0; ci < ncount; ++ci) {
+        near[ci] = CC_SAFE_MALLOC (kNum, int);
     }
+    for (int ci = 0; ci < ncount; ++ci) {
+        for (int j = 0; j < ncount; ++j) {
+            incycle[j] = 0;
+        }
+        incycle[ci] = 1;
+        for (int ni = 0; ni < kNum; ++ni) {
+            minCost = BIGDOUBLE;
+            nearCity = -1;
+            for (int cj = 0; cj < ncount; ++cj) {
+                int cost = CCutil_dat_edgelen(ci, cj, &dat);
+                if (cost <= minCost && incycle[cj] == 0) {
+                    nearCity = cj;
+                    minCost = cost;
+                }
+            }
+            assert(nearCity != -1);
+            near[ci][ni] = nearCity;
+            incycle[nearCity] = 1;
+        }
+    }
+    printf ("Time to find k-nearest: %.2f\n", CCutil_zeit () - kzeit);
+    fflush (stdout);
+
+    /* generate edge by k-nearest */
+    kzeit = CCutil_zeit ();
+    const int eNum = 10;
+    int eCnt, listIdx;
+    edgeNum = 0;
+    for (int ci = 0; ci < ncount; ++ci) {
+        eCnt = 0;
+        for (int ni = 0; ni < kNum && eCnt < eNum; ++ni) {
+            if (near[ci][ni] > ci) {
+                eCnt++;
+                edgeNum++;
+            }
+        }
+    }
+    assert(edgeNum > 0);
+    edgeList = CC_SAFE_MALLOC (2*edgeNum, int);
+    listIdx = 0;
+    for (int ci = 0; ci < ncount; ++ci) {
+        eCnt = 0;
+        for (int ni = 0; ni < kNum && eCnt < eNum; ++ni) {
+            if (near[ci][ni] > ci) {
+                edgeList[listIdx] = ci;
+                edgeList[listIdx+1] = near[ci][ni];
+                eCnt++;
+                listIdx += 2;
+            }
+        }
+    }
+    assert(listIdx == 2*edgeNum);
+    printf ("Time to generate edge: %.2f\n", CCutil_zeit () - kzeit);
+    fflush (stdout);
+
+    CCutil_randcycle (ncount, incycle);
 
     outcycle = CC_SAFE_MALLOC (ncount, int);
     if (!outcycle) {
@@ -147,11 +165,11 @@ int main (int ac, char **av)
         goto CLEANUP;
     }
 
-    k = 0;
+    int iter = 0;
     best = BIGDOUBLE;
     do {
-        printf ("\nStarting Run %d\n", k);
-        if (CClinkern_tour (ncount, &dat, tempcount, templist, 100000000,
+        printf ("\nStarting Run %d\n", iter);
+        if (CClinkern_tour (ncount, &dat, edgeNum, edgeList, 100000000,
                 in_repeater, incycle, outcycle, &val, run_silently, kick_type)) {
             fprintf (stderr, "CClinkern_tour failed\n");
             rval = 1;
@@ -160,16 +178,19 @@ int main (int ac, char **av)
         if (val < best) {
             best = val;
         }
-    } while (++k < number_runs);
+    } while (++iter < number_runs);
     printf ("Overall Best Cycle: %.0f\n", val);
     printf ("Total Running Time: %.2f\n", CCutil_zeit () - startzeit);
     fflush (stdout);
 
 CLEANUP:
 
-#ifndef BIG_PROBLEM
-    CC_IFFREE (templist, int);
-#endif
+    for (int ci = 0; ci < ncount; ++ci) {
+        CC_IFFREE(near[ci], int);
+    }
+    CC_IFFREE(near, int*);
+
+    CC_IFFREE (edgeList, int);
     CC_IFFREE (incycle, int);
     CC_IFFREE (outcycle, int);
     CCutil_freedatagroup (&dat);

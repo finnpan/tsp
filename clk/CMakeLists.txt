@@ -7,7 +7,7 @@ set(CMAKE_C_FLAGS_DEBUG "${FLAGS_COMMON} -O0 -g2 -ggdb")
 
 
 set(target_name clk)
-add_executable(${target_name} ${target_name}.c util.c kdtree.c linkern.c)
+add_executable(${target_name} ${target_name}.c util.c linkern.c)
 target_link_libraries(${target_name} PRIVATE m ${base_lib})
 
 
