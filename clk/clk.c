@@ -189,7 +189,6 @@ static int parseargs (int ac, char **av)
         case 'K':
             k = atoi (boptarg);
             if (k == CC_LK_RANDOM_KICK)         kick_type = CC_LK_RANDOM_KICK;
-            else if (k == CC_LK_GEOMETRIC_KICK) kick_type = CC_LK_GEOMETRIC_KICK;
             else if (k == CC_LK_CLOSE_KICK)     kick_type = CC_LK_CLOSE_KICK;
             else if (k == CC_LK_WALK_KICK)      kick_type = CC_LK_WALK_KICK;
             else fprintf (stderr, "unknown kick type, using default\n");
@@ -219,9 +218,8 @@ static int parseargs (int ac, char **av)
 static void usage (char *f)
 {
     fprintf (stderr, "usage: %s [- see below -] [tsplib_file or dat_file]\n", f);
-    fprintf (stderr, "   -K #  kick (%d-Random, %d-Geometric, %d-Close, %d-Random_Walk [default])\n",
-           CC_LK_RANDOM_KICK, CC_LK_GEOMETRIC_KICK,
-           CC_LK_CLOSE_KICK, CC_LK_WALK_KICK);
+    fprintf (stderr, "   -K #  kick (%d-Random, %d-Close, %d-Random_Walk [default])\n",
+           CC_LK_RANDOM_KICK, CC_LK_CLOSE_KICK, CC_LK_WALK_KICK);
     fprintf (stderr, "   -r #  number of runs\n");
     fprintf (stderr, "   -Q    run silently\n");
 }

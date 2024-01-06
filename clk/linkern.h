@@ -19,9 +19,8 @@
 #include "util.h"
 
 #define CC_LK_RANDOM_KICK    (0)
-#define CC_LK_GEOMETRIC_KICK (1)
-#define CC_LK_CLOSE_KICK     (2)
-#define CC_LK_WALK_KICK      (3)
+#define CC_LK_CLOSE_KICK     (1)
+#define CC_LK_WALK_KICK      (2)
 
 
 

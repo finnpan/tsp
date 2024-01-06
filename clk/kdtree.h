@@ -16,6 +16,7 @@
 #ifndef __KDTREE_H
 #define __KDTREE_H
 
+#include "mpool.h"
 #include "util.h"
 
 typedef struct CCkdnode {
@@ -36,8 +37,7 @@ typedef struct CCkdtree {
     CCkdnode        *root;
     CCkdnode       **bucketptr;
     int             *perm;
-    CCptrworld       kdnode_world;
-    CCptrworld       kdbnds_world;
+    mpool           *pool;
 } CCkdtree;
 
 typedef struct CCkdbnds {

@@ -38,10 +38,6 @@
 #define BIGDOUBLE (1e30)
 
 
-static void
-    kdtree_free_work (CCkdnode *p, CCptrworld *kdnode_world,
-        CCptrworld *kdbnds_world),
-    kdtree_free_world (CCptrworld *kdnode_world, CCptrworld *kdbnds_world);
 static unsigned char
     findmaxspread (int l, int u, CCkdtree *thetree, double *datx,
            double *daty, double *datw);
@@ -54,12 +50,6 @@ static void
     CCutil_rselect (int *arr, int l, int r, int m, double *coord);
 
 
-CC_PTRWORLD_ROUTINES (CCkdnode, kdnodealloc, kdnode_bulk_alloc, kdnodefree)
-CC_PTRWORLD_LEAKS_ROUTINE (CCkdnode, kdnode_check_leaks, empty, char)
-
-CC_PTRWORLD_ROUTINES (CCkdbnds, kdbndsalloc, kdbnds_bulk_alloc, kdbndsfree)
-CC_PTRWORLD_LEAKS_ROUTINE (CCkdbnds, kdbnds_check_leaks, x[0], double)
-
 int CCkdtree_build (CCkdtree *intree, int ncount, CCdatagroup *dat,
         double *wcoord)
 {
@@ -69,8 +59,7 @@ int CCkdtree_build (CCkdtree *intree, int ncount, CCdatagroup *dat,
     double current_bnds_y[2];
     CCkdtree *thetree;
 
-    CCptrworld_init (&intree->kdnode_world);
-    CCptrworld_init (&intree->kdbnds_world);
+    intree->pool = mpool_init(4, 12);
 
     if (wcoord != (double *) NULL) {
         for (i = 0; i < ncount; i++) {
@@ -119,42 +108,9 @@ void CCkdtree_free (CCkdtree *kt)
         CC_FREE (kt->perm, int);
     if (kt->bucketptr)
         CC_FREE (kt->bucketptr, CCkdnode *);
-    kdtree_free_work (kt->root, &kt->kdnode_world, &kt->kdbnds_world);
     kt->root = (CCkdnode *) NULL;
 
-    kdtree_free_world (&kt->kdnode_world, &kt->kdbnds_world);
-}
-
-static void kdtree_free_world (CCptrworld *kdnode_world,
-        CCptrworld *kdbnds_world)
-{
-    int total, onlist;
-
-    if (kdnode_check_leaks (kdnode_world, &total, &onlist)) {
-        fprintf (stderr, "WARNING: %d outstanding kdnodes\n",
-                 total - onlist);
-    }
-    if (kdbnds_check_leaks (kdbnds_world, &total, &onlist)) {
-        fprintf (stderr, "WARNING: %d outstanding kdbnds\n", total - onlist);
-    }
-    CCptrworld_delete (kdnode_world);
-    CCptrworld_delete (kdbnds_world);
-}
-
-static void kdtree_free_work (CCkdnode *p, CCptrworld *kdnode_world,
-        CCptrworld *kdbnds_world)
-{
-    if (p->bucket) {
-        if (p->bnds)
-            kdbndsfree (kdbnds_world, p->bnds);
-        kdnodefree (kdnode_world, p);
-    } else {
-        kdtree_free_work (p->loson, kdnode_world, kdbnds_world);
-        kdtree_free_work (p->hison, kdnode_world, kdbnds_world);
-        if (p->bnds)
-            kdbndsfree (kdbnds_world, p->bnds);
-        kdnodefree (kdnode_world, p);
-    }
+    mpool_free(kt->pool);
 }
 
 static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
@@ -166,7 +122,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
     double savebnd;
 
     (*depth)++;
-    p = kdnodealloc (&thetree->kdnode_world);
+    p = (CCkdnode*)mpool_alloc(thetree->pool, sizeof(CCkdnode));
     if (!p) {
         (*depth)--;
         return (CCkdnode *) NULL;
@@ -183,10 +139,10 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
     } else {
         p->bucket = 0;
         if (!((*depth) % BNDS_DEPTH)) {
-            p->bnds = kdbndsalloc (&thetree->kdbnds_world);
+            p->bnds = (CCkdbnds*)mpool_alloc(thetree->pool, sizeof(CCkdbnds));
             if (!p->bnds) {
                 (*depth)--;
-                kdnodefree (&thetree->kdbnds_world, p);
+                //kdnodefree (&thetree->kdbnds_world, p);
                 return (CCkdnode *) NULL;
             }
             p->bnds->x[0] = current_bnds_x[0];
@@ -210,7 +166,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
                               thetree, datx, daty, datw);
             if (!p->loson) {
                 (*depth)--;
-                kdnodefree (&thetree->kdnode_world, p);
+                //kdnodefree (&thetree->kdnode_world, p);
                 return (CCkdnode *) NULL;
             }
             current_bnds_x[1] = savebnd;
@@ -221,7 +177,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
                               thetree, datx, daty, datw);
             if (!p->hison) {
                 (*depth)--;
-                kdnodefree (&thetree->kdnode_world, p);
+                //kdnodefree (&thetree->kdnode_world, p);
                 return (CCkdnode *) NULL;
             }
             current_bnds_x[0] = savebnd;
@@ -237,7 +193,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
                               thetree, datx, daty, datw);
             if (!p->loson) {
                 (*depth)--;
-                kdnodefree (&thetree->kdnode_world, p);
+                //kdnodefree (&thetree->kdnode_world, p);
                 return (CCkdnode *) NULL;
             }
             current_bnds_y[1] = savebnd;
@@ -248,7 +204,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
                               thetree, datx, daty, datw);
             if (!p->hison) {
                 (*depth)--;
-                kdnodefree (&thetree->kdnode_world, p);
+                //kdnodefree (&thetree->kdnode_world, p);
                 return (CCkdnode *) NULL;
             }
             current_bnds_y[0] = savebnd;
@@ -262,7 +218,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
                               thetree, datx, daty, datw);
             if (!p->loson) {
                 (*depth)--;
-                kdnodefree (&thetree->kdnode_world, p);
+                //kdnodefree (&thetree->kdnode_world, p);
                 return (CCkdnode *) NULL;
             }
 
@@ -270,7 +226,7 @@ static CCkdnode *build (int l, int u, int *depth, double *current_bnds_x,
                               thetree, datx, daty, datw);
             if (!p->hison) {
                 (*depth)--;
-                kdnodefree (&thetree->kdnode_world, p);
+                //kdnodefree (&thetree->kdnode_world, p);
                 return (CCkdnode *) NULL;
             }
 
@@ -399,18 +355,12 @@ static int
     run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k, CCdatagroup *dat,
         double *wcoord, int wantlist, int *ocount, int **olist, int doquad,
         int silent),
-    put_in_table (int i, int j, int *added, intptr **table,
-        CCptrworld *intptr_world),
+    put_in_table (int i, int j, int *added, intptr **table, mpool *pool),
     q_run_it (CCkdtree *thetree, CCdatagroup *dat, double *datw, int *llist,
          int *lcount, int *list, int target, int num, CCkdbnds *box),
     run_kdtree_node_k_nearest (CCkdtree *thetree, CCdatagroup *dat,
          double *datw, int *list, int target, int num, CCkdbnds *box),
     ball_in_bounds (CCdatagroup *dat, CCkdbnds *bnds, int n, double dist);
-
-
-CC_PTRWORLD_LIST_ROUTINES (intptr, int, intptralloc, intptr_bulk_alloc,
-        intptrfree, intptr_listadd, intptr_listfree)
-CC_PTRWORLD_LEAKS_ROUTINE (intptr, intptr_check_leaks, this, int)
 
 int CCkdtree_quadrant_k_nearest (CCkdtree *kt, int ncount, int k,
         CCdatagroup *dat, double *wcoord, int wantlist, int *ocount,
@@ -427,7 +377,6 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
 {
     int i, n;
     intptr *ip, *ipnext;
-    int total, onlist;
     CCkdtree localkt, *mykt;
     int added, ntotal = 0;
     int rval = 0;
@@ -435,9 +384,7 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
     int goal = (doquad ? (4 * k) : k);
     int newtree = 0;
     intptr **table = (intptr **) NULL;
-    CCptrworld intptr_world;
-
-    CCptrworld_init (&intptr_world);
+    mpool *pool = mpool_init(4, 12);
 
     if (wcoord != (double *) NULL) {
         for (i = 0; i < ncount; i++) {
@@ -494,7 +441,7 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
         }
         for (i = 0; i < goal; i++) {
             if (list[i] != -1) {
-                if (put_in_table (n, list[i], &added, table, &intptr_world))  {
+                if (put_in_table (n, list[i], &added, table, pool))  {
                     rval = 1;
                     goto CLEANUP;
                 } else {
@@ -539,24 +486,20 @@ static int run_kdtree_k_nearest (CCkdtree *kt, int ncount, int k,
                 ipnext =  ip->next;
                 (*olist)[j++] = i;
                 (*olist)[j++] = ip->this;
-                intptrfree (&intptr_world, ip);
+                //intptrfree (&intptr_world, ip);
             }
             table[i] = (intptr *) NULL;
         }
     } else {
         for (i = 0; i < ncount; i++) {
-            intptr_listfree (&intptr_world, table[i]);
+            //intptr_listfree (&intptr_world, table[i]);
             table[i] = (intptr *) NULL;
         }
-    }
-    if (intptr_check_leaks (&intptr_world, &total, &onlist)) {
-        fprintf (stderr, "WARNING: %d outstanding intptrs in kdnear\n",
-                 total - onlist);
     }
 
 CLEANUP:
 
-    CCptrworld_delete (&intptr_world);
+    mpool_free(pool);
     if (table)
         CC_FREE(table, intptr *);
     if (list)
@@ -567,8 +510,23 @@ CLEANUP:
     return rval;
 }
 
-static int put_in_table (int i, int j, int *added, intptr **table,
-        CCptrworld *intptr_world)
+static int intptr_listadd (intptr **list, int x, mpool *pool)
+{
+    if (list != (intptr **) NULL) {
+        intptr *p = (intptr*)mpool_alloc(pool, sizeof(intptr));
+
+        if (p == (intptr *) NULL) {
+            fprintf (stderr, "ptr list add failed\n");
+            return 1;
+        }
+        p->this = x;
+        p->next = *list;
+        *list = p;
+    }
+    return 0;
+}
+
+static int put_in_table (int i, int j, int *added, intptr **table, mpool *pool)
 {
     intptr *ip;
 
@@ -583,7 +541,7 @@ static int put_in_table (int i, int j, int *added, intptr **table,
             return 0;
         }
     }
-    if (intptr_listadd (&table[i], j, intptr_world)) {
+    if (intptr_listadd (&table[i], j, pool)) {
         *added = 0;
         return 1;
     }

@@ -29,8 +29,7 @@
 /*    -outcycle (returns the cycle - can be NULL)                           */
 /*    -run_slightly (if nonzero, then very little info will be printed)     */
 /*    -kicktype (specifies the type of kick used - should be one of         */
-/*       CC_LK_RANDOM_KICK, CC_LK_GEOMETRIC_KICK, CC_LK_CLOSE_KICK, or      */
-/*       CC_LK_WALK_KICK)                                                   */
+/*       CC_LK_RANDOM_KICK, CC_LK_CLOSE_KICK, or CC_LK_WALK_KICK)           */
 /*                                                                          */
 /*    NOTES: If incycle is NULL, then a random starting cycle is used. If   */
 /*     outcycle is not NULL, then it should point to an array of length     */
@@ -40,7 +39,7 @@
 
 #include "linkern.h"
 #include "flipper.h"
-#include "kdtree.h"
+#include "mpool.h"
 
 #define MAXDEPTH       25   /* Shouldn't really be less than 2.             */
 #define KICK_MAXDEPTH  50
@@ -165,19 +164,17 @@ typedef struct aqueue {
 
 static void
    lin_kernighan (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       double *val, int *win_cycle, flipstack *w, flipstack *fstack,
-       CCptrworld *intptr_world, CCptrworld *edgelook_world),
+       double *val, int *win_cycle, flipstack *w, flipstack *fstack, mpool *pool),
    look_ahead_noback (graph *G, distobj *D, adddel *E, CClk_flipper *F,
        int first, int last, int gain, edgelook *winner),
 #ifdef USE_LESS_MARKING
-   turn (int n, aqueue *Q, CCptrworld *intptr_world),
+   turn (int n, aqueue *Q, mpool *pool),
 #else
-   turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world),
+   turn (int n, aqueue *Q, CClk_flipper *F, mpool *pool),
 #endif
-   kickturn (int n, aqueue *Q, distobj *D, graph *G, CClk_flipper *F,
-        CCptrworld *intptr_world),
+   kickturn (int n, aqueue *Q, distobj *D, graph *G, CClk_flipper *F, mpool *pool),
    bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
-        distobj *D, CCptrworld *intptr_world),
+        distobj *D, mpool *pool),
    first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1, int *t2),
    find_random_four (graph *G, distobj *D, CClk_flipper *F, int *t1, int *t2,
        int *t3, int *t4, int *t5, int *t6, int *t7, int *t8),
@@ -191,69 +188,54 @@ static void
    init_adddel (adddel *E),
    free_adddel (adddel *E),
    init_aqueue (aqueue *Q),
-   free_aqueue (aqueue *Q, CCptrworld *intptr_world),
-   add_to_active_queue (int n, aqueue *Q, CCptrworld *intptr_world),
+   free_aqueue (aqueue *Q, mpool *pool),
+   add_to_active_queue (int n, aqueue *Q, mpool *pool),
    init_distobj (distobj *D),
    free_distobj (distobj *D),
-   linkern_free_world (CCptrworld *intptr_world, CCptrworld *edgelook_world),
    free_flipstack (flipstack *f);
 
 static int
    buildgraph (graph *G, int ncount, int ecount, int *elist, distobj *D),
    repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
        int stallcount, int repeatcount, double *val, int silent, int kicktype,
-       CCptrworld *intptr_world, CCptrworld *edgelook_world),
+       mpool *pool),
    weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
        CClk_flipper *F, int gain, int t1, int t2, flipstack *fstack,
-       CCptrworld *intptr_world, CCptrworld *edgelook_world),
+       mpool *pool),
    step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
        int level, int gain, int *Gstar, int first, int last, flipstack *fstack,
-       CCptrworld *intptr_world, CCptrworld *edgelook_world),
+       mpool *pool),
    step_noback (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
        int level, int gain, int *Gstar, int first, int last,
-       flipstack *fstack, CCptrworld *intptr_world),
+       flipstack *fstack, mpool *pool),
    kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
        int level, int gain, int *Gstar, int first, int last, flipstack *win,
-       flipstack *fstack, CCptrworld *intptr_world),
-   find_geometric_four (graph *G, distobj *D, CClk_flipper *F, CCkdtree *kdt,
-       int *t1, int *t2, int *t3, int *t4,
-       int *t5, int *t6, int *t7, int *t8),
+       flipstack *fstack, mpool *pool),
    random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
-       CCkdtree *kdt, int *delta, int kicktype, flipstack *win,
-       flipstack *fstack, CCptrworld *intptr_world),
+       int *delta, int kicktype, flipstack *win, flipstack *fstack, mpool *pool),
    build_adddel (adddel *E, int ncount),
-   build_aqueue (aqueue *Q, int ncount, CCptrworld *intptr_world),
-   pop_from_active_queue (aqueue *Q, CCptrworld *intptr_world),
+   build_aqueue (aqueue *Q, int ncount, mpool *pool),
+   pop_from_active_queue (aqueue *Q, mpool *pool),
    build_distobj (distobj *D, int ncount, CCdatagroup *dat),
    dist (int i, int j, distobj *D),
    init_flipstack (flipstack *f, int total, int single);
 
 static double
    improve_tour (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       int start, flipstack *fstack, CCptrworld *intptr_world,
-       CCptrworld *edgelook_world),
+       int start, flipstack *fstack, mpool *pool),
    kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       flipstack *win, flipstack *fstack, CCptrworld *intptr_world),
+       flipstack *win, flipstack *fstack, mpool *pool),
    cycle_length (int ncount, int *cyc, distobj *D);
 
 static edgelook
    *look_ahead (graph *G, distobj *D, adddel *E, CClk_flipper *F, int first,
-       int last, int gain, int level, CCptrworld *edgelook_world),
+       int last, int gain, int level, mpool *pool),
    *weird_look_ahead  (graph *G, distobj *D, CClk_flipper *F, int gain, int t1,
-       int t2, CCptrworld *edgelook_world),
+       int t2, mpool *pool),
    *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F, int gain, int t2,
-       int t3, int t4, CCptrworld *edgelook_world),
+       int t3, int t4, mpool *pool),
    *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F, int gain, int t2,
-       int t3, int t6, CCptrworld *edgelook_world);
-
-
-CC_PTRWORLD_ROUTINES(intptr, intptralloc, intptr_bulkalloc, intptrfree)
-CC_PTRWORLD_LISTFREE_ROUTINE(intptr, intptr_listfree, intptrfree)
-CC_PTRWORLD_LEAKS_ROUTINE(intptr, intptr_check_leaks, this, int)
-
-CC_PTRWORLD_ROUTINES(edgelook, edgelookalloc, edgelook_bulkalloc, edgelookfree)
-CC_PTRWORLD_LISTFREE_ROUTINE(edgelook, edgelook_listfree, edgelookfree)
-CC_PTRWORLD_LEAKS_ROUTINE(edgelook, edgelook_check_leaks, diff, int)
+       int t3, int t6, mpool *pool);
 
 
 int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
@@ -266,8 +248,7 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     double startzeit;
     graph G;
     distobj D;
-    CCptrworld intptr_world;
-    CCptrworld edgelook_world;
+    mpool *pool = mpool_init(4, 12);
 
     if (silent == 0) {
         printf ("linkern ...\n"); fflush (stdout);
@@ -276,36 +257,11 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
 
     initgraph (&G);
     init_distobj (&D);
-    CCptrworld_init (&intptr_world);
-    CCptrworld_init (&edgelook_world);
 
     if (ncount < 10 && repeatcount > 0) {
         printf ("Less than 10 nodes, setting repeatcount to 0\n");
         fflush (stdout);
         repeatcount = 0;
-    }
-
-    if (((dat->norm) & CC_NORM_BITS) != CC_KD_NORM_TYPE) {
-        if (kicktype == CC_LK_GEOMETRIC_KICK) {
-            if (silent == 0) {
-                printf ("Setting kick type to close\n"); fflush (stdout);
-            }
-            kicktype = CC_LK_CLOSE_KICK;
-        }
-    }
-
-    /* These bulkalloc's allocate sufficient objects that the individual
-     * allocs will not fail, and thus do not need to be tested */
-    rval = intptr_bulkalloc (&intptr_world, ncount);
-    if (rval) {
-        fprintf (stderr, "Unable to allocate initial intptrs\n");
-        goto CLEANUP;
-    }
-
-    rval = edgelook_bulkalloc (&edgelook_world, MAX_BACK * (BACKTRACK + 3));
-    if (rval) {
-        fprintf (stderr, "Unable to allocate initial edgelooks\n");
-        goto CLEANUP;
     }
 
     tcyc = CC_SAFE_MALLOC (ncount, int);
@@ -333,7 +289,7 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     }
 
     rval = repeated_lin_kernighan (&G, &D, tcyc, stallcount, repeatcount,
-                 val, silent, kicktype, &intptr_world, &edgelook_world);
+                 val, silent, kicktype, pool);
     if (rval) {
         fprintf (stderr, "repeated_lin_kernighan failed\n"); goto CLEANUP;
     }
@@ -354,7 +310,7 @@ CLEANUP:
     CC_IFFREE (tcyc, int);
     freegraph (&G);
     free_distobj (&D);
-    linkern_free_world (&intptr_world, &edgelook_world);
+    mpool_free(pool);
 
     return rval;
 }
@@ -366,14 +322,12 @@ CLEANUP:
 
 static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         int stallcount, int count, double *val, int silent, int kicktype,
-        CCptrworld *intptr_world, CCptrworld *edgelook_world)
+        mpool *pool)
 {
     int rval    = 0;
     int round   = 0;
-    int newtree = 0;
     int quitcount, hit, delta;
     int *win_cycle = (int *) NULL;
-    CCkdtree kdt;
     flipstack winstack, fstack;
     double t, best = *val, oldbest = *val;
     double szeit = CCutil_zeit ();
@@ -389,7 +343,7 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
 
     init_aqueue (&Q);
     init_adddel (&E);
-    rval = build_aqueue (&Q, ncount, intptr_world);
+    rval = build_aqueue (&Q, ncount, pool);
     if (rval) {
         fprintf (stderr, "build_aqueue failed\n"); goto CLEANUP;
     }
@@ -435,22 +389,12 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         /* init active_queue with random order */
         CCutil_randcycle (ncount, tcyc);
         for (i = 0; i < ncount; i++) {
-            add_to_active_queue (tcyc[i], &Q, intptr_world);
+            add_to_active_queue (tcyc[i], &Q, pool);
         }
         CC_IFFREE (tcyc, int);
     }
 
-    if (kicktype == CC_LK_GEOMETRIC_KICK) {
-        rval = CCkdtree_build (&kdt, ncount, D->dat, (double *) NULL);
-        if (rval) {
-            fprintf (stderr, "CCkdtree_build failed\n"); goto CLEANUP;
-        } else {
-            newtree = 1;
-        }
-    }
-
-    lin_kernighan (G, D, &E, &Q, &F, &best, win_cycle, &winstack, &fstack,
-                   intptr_world, edgelook_world);
+    lin_kernighan (G, D, &E, &Q, &F, &best, win_cycle, &winstack, &fstack, pool);
 
     winstack.counter = 0;
     win_cycle[0] = -1;
@@ -470,19 +414,18 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         fstack.counter = 0;
 
         if (IMPROVE_SWITCH == -1 || round < IMPROVE_SWITCH) {
-            rval = random_four_swap (G, D, &Q, &F, &kdt, &delta, kicktype,
-                                     &winstack, &fstack, intptr_world);
+            rval = random_four_swap (G, D, &Q, &F, &delta, kicktype,
+                                     &winstack, &fstack, pool);
             if (rval) {
                 fprintf (stderr, "random_four_swap failed\n"); goto CLEANUP;
             }
         } else {
-            delta = kick_improve (G, D, &E, &Q, &F, &winstack, &fstack, intptr_world);
+            delta = kick_improve (G, D, &E, &Q, &F, &winstack, &fstack, pool);
         }
 
         fstack.counter = 0;
         t = best + delta;
-        lin_kernighan (G, D, &E, &Q, &F, &t, win_cycle, &winstack, &fstack,
-                       intptr_world, edgelook_world);
+        lin_kernighan (G, D, &E, &Q, &F, &t, win_cycle, &winstack, &fstack, pool);
 
 #ifdef ACCEPT_BAD_TOURS
         if (round % HEAT_RESET == HEAT_RESET - 1) {
@@ -566,29 +509,26 @@ printf ("%4d Steps   Best: %.0f   %.2f seconds (Negative %.0f) (%.0f)\n",
 
 CLEANUP:
 
-    free_aqueue (&Q, intptr_world);
+    free_aqueue (&Q, pool);
     free_adddel (&E);
     free_flipstack (&fstack);
     free_flipstack (&winstack);
     CC_IFFREE (win_cycle, int);
-    if (newtree) CCkdtree_free (&kdt);
     return rval;
 }
 
 static void lin_kernighan (graph *G, distobj *D, adddel *E, aqueue *Q,
         CClk_flipper *F, double *val, int *win_cycle, flipstack *win,
-        flipstack *fstack, CCptrworld *intptr_world,
-        CCptrworld *edgelook_world)
+        flipstack *fstack, mpool *pool)
 {
     int start, i;
     double delta, totalwin = 0.0;
 
     while (1) {
-        start = pop_from_active_queue (Q, intptr_world);
+        start = pop_from_active_queue (Q, pool);
         if (start == -1) break;
 
-        delta = improve_tour (G, D, E, Q, F, start, fstack, intptr_world,
-                              edgelook_world);
+        delta = improve_tour (G, D, E, Q, F, start, fstack, pool);
         if (delta > 0.0) {
             totalwin += delta;
             if (win->counter < win->max) {
@@ -624,8 +564,7 @@ static void lin_kernighan (graph *G, distobj *D, adddel *E, aqueue *Q,
 }
 
 static double improve_tour (graph *G, distobj *D, adddel *E, aqueue *Q,
-        CClk_flipper *F, int t1, flipstack *fstack,
-        CCptrworld *intptr_world, CCptrworld *edgelook_world)
+        CClk_flipper *F, int t1, flipstack *fstack, mpool *pool)
 {
     int t2 = CClinkern_flipper_next (F, t1);
     int gain, Gstar = 0;
@@ -633,24 +572,22 @@ static double improve_tour (graph *G, distobj *D, adddel *E, aqueue *Q,
     gain = Edgelen (t1, t2, D);
     markedge_del (t1, t2, E);
 
-    if (step (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, fstack, intptr_world, edgelook_world)
+    if (step (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, fstack, pool)
         == 0) {
-        Gstar = weird_second_step (G, D, E, Q, F, gain, t1, t2, fstack,
-                                   intptr_world, edgelook_world);
+        Gstar = weird_second_step (G, D, E, Q, F, gain, t1, t2, fstack, pool);
     }
     unmarkedge_del (t1, t2, E);
 
     if (Gstar) {
-        MARK (t1, Q, F, D, G, intptr_world);
-        MARK(t2, Q, F, D, G, intptr_world);
+        MARK (t1, Q, F, D, G, pool);
+        MARK(t2, Q, F, D, G, pool);
     }
     return (double) Gstar;
 }
 
 static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
         int level, int gain, int *Gstar, int first, int last,
-        flipstack *fstack, CCptrworld *intptr_world,
-        CCptrworld *edgelook_world)
+        flipstack *fstack, mpool *pool)
 {
     int val, this, newlast, hit = 0, oldG = gain;
 #if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
@@ -660,10 +597,10 @@ static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
 
     if (level >= BACKTRACK) {
         return step_noback (G, D, E, Q, F, level, gain, Gstar, first, last,
-                            fstack, intptr_world);
+                            fstack, pool);
     }
 
-    list = look_ahead (G, D, E, F, first, last, gain, level, edgelook_world);
+    list = look_ahead (G, D, E, F, first, last, gain, level, pool);
     for (e = list; e; e = e->next) {
 #if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
         if (e->mm) {
@@ -682,7 +619,7 @@ static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
                 markedge_add (first, this, E);
                 markedge_del (this, newfirst, E);
                 hit += step (G, D, E, Q, F, level + 1, gain, Gstar, newfirst,
-                             last, fstack, intptr_world, edgelook_world);
+                             last, fstack, pool);
                 unmarkedge_add (first, this, E);
                 unmarkedge_del (this, newfirst, E);
             }
@@ -690,9 +627,9 @@ static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
             if (!hit) {
                 UNFLIP (this, newfirst, first, last, fstack, F);
             } else {
-                MARK (this, Q, F, D, G, intptr_world);
-                MARK (newfirst, Q, F, D, G, intptr_world);
-                edgelook_listfree (edgelook_world, list);
+                MARK (this, Q, F, D, G, pool);
+                MARK (newfirst, Q, F, D, G, pool);
+                //edgelook_listfree (pool, list);
                 return 1;
             }
         } else
@@ -714,7 +651,7 @@ static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
                 markedge_add (last, this, E);
                 markedge_del (this, newlast, E);
                 hit += step (G, D, E, Q, F, level + 1, gain, Gstar, first,
-                             newlast, fstack, intptr_world, edgelook_world);
+                             newlast, fstack, pool);
                 unmarkedge_add (last, this, E);
                 unmarkedge_del (this, newlast, E);
             }
@@ -722,20 +659,20 @@ static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
             if (!hit) {
                 UNFLIP (first, last, newlast, this, fstack, F);
             } else {
-                MARK (this, Q, F, D, G, intptr_world);
-                MARK (newlast, Q, F, D, G, intptr_world);
-                edgelook_listfree (edgelook_world, list);
+                MARK (this, Q, F, D, G, pool);
+                MARK (newlast, Q, F, D, G, pool);
+                //edgelook_listfree (pool, list);
                 return 1;
             }
         }
     }
-    edgelook_listfree (edgelook_world, list);
+    //edgelook_listfree (pool, list);
     return 0;
 }
 
 static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
         CClk_flipper *F, int level, int gain, int *Gstar, int first, int last,
-        flipstack *fstack, CCptrworld *intptr_world)
+        flipstack *fstack, mpool* pool)
 {
     edgelook e;
 
@@ -787,7 +724,7 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                 markedge_del (newlast, prev, E);
                 markedge_del (newlast, next, E);
                 hit += step_noback (G, D, E, Q, F, level+1, gain, Gstar, first,
-                                    newlast, fstack, intptr_world);
+                                    newlast, fstack, pool);
                 unmarkedge_add (last, newlast, E);
                 unmarkedge_add (next, prev, E);
                 unmarkedge_del (newlast, prev, E);
@@ -799,9 +736,9 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                 UNFLIP (first, last, newlast, next, fstack, F);
                 return 0;
             } else {
-                MARK (newlast, Q, F, D, G, intptr_world);
-                MARK (next, Q, F, D, G, intptr_world);
-                MARK (prev, Q, F, D, G, intptr_world);
+                MARK (newlast, Q, F, D, G, pool);
+                MARK (next, Q, F, D, G, pool);
+                MARK (prev, Q, F, D, G, pool);
                 return 1;
             }
         } else
@@ -826,7 +763,7 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                     markedge_add (first, this, E);
                     markedge_del (this, newfirst, E);
                     hit += step_noback (G, D, E, Q, F, level + 1, gain, Gstar,
-                                        newfirst, last, fstack, intptr_world);
+                                        newfirst, last, fstack, pool);
                     unmarkedge_add (first, this, E);
                     unmarkedge_del (this, newfirst, E);
                 }
@@ -835,8 +772,8 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                     UNFLIP (this, newfirst, first, last, fstack, F);
                     return 0;
                 } else {
-                    MARK (this, Q, F, D, G, intptr_world);
-                    MARK (newfirst, Q, F, D, G, intptr_world);
+                    MARK (this, Q, F, D, G, pool);
+                    MARK (newfirst, Q, F, D, G, pool);
                     return 1;
                 }
             } else
@@ -860,7 +797,7 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                     markedge_add (last, this, E);
                     markedge_del (this, newlast, E);
                     hit += step_noback (G, D, E, Q, F, level + 1, gain, Gstar,
-                                        first, newlast, fstack, intptr_world);
+                                        first, newlast, fstack, pool);
                     unmarkedge_add (last, this, E);
                     unmarkedge_del (this, newlast, E);
                 }
@@ -869,8 +806,8 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                     UNFLIP (first, last, newlast, this, fstack, F);
                     return 0;
                 } else {
-                    MARK (this, Q, F, D, G, intptr_world);
-                    MARK (newlast, Q, F, D, G, intptr_world);
+                    MARK (this, Q, F, D, G, pool);
+                    MARK (newlast, Q, F, D, G, pool);
                     return 1;
                 }
             }
@@ -881,8 +818,7 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
 }
 
 static double kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q,
-        CClk_flipper *F, flipstack *win, flipstack *fstack,
-        CCptrworld *intptr_world)
+        CClk_flipper *F, flipstack *win, flipstack *fstack, mpool *pool)
 {
     int t1, t2;
     int gain, Gstar = 0;
@@ -893,12 +829,12 @@ static double kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q,
         gain = Edgelen (t1, t2, D);
         markedge_del (t1, t2, E);
         hit = kick_step_noback (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, win,
-                                fstack, intptr_world);
+                                fstack, pool);
         unmarkedge_del (t1, t2, E);
     } while (!hit);
 
-    kickturn (t1, Q, D, G, F, intptr_world);
-    kickturn (t2, Q, D, G, F, intptr_world);
+    kickturn (t1, Q, D, G, F, pool);
+    kickturn (t2, Q, D, G, F, pool);
 
     return (double) -Gstar;
 }
@@ -907,7 +843,7 @@ static double kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q,
 
 static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
         CClk_flipper *F, int level, int gain, int *Gstar, int first, int last,
-        flipstack *win, flipstack *fstack, CCptrworld *intptr_world)
+        flipstack *win, flipstack *fstack, mpool *pool)
 {
     edgelook winner;
     int val;
@@ -941,8 +877,8 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
         *Gstar = gain - Edgelen (newlast, first, D);
 
         FLIP (first, last, newlast, this, fstack, F);
-        kickturn (this, Q, D, G, F, intptr_world);
-        kickturn (newlast, Q, D, G, F, intptr_world);
+        kickturn (this, Q, D, G, F, pool);
+        kickturn (newlast, Q, D, G, F, pool);
         if (win->counter < win->max) {
             win->stack[win->counter].first = last;
             win->stack[win->counter].last = newlast;
@@ -953,7 +889,7 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
             markedge_add (last, this, E);
             markedge_del (this, newlast, E);
             kick_step_noback (G, D, E, Q, F, level+1, gain, Gstar, first,
-                              newlast, win, fstack, intptr_world);
+                              newlast, win, fstack, pool);
             unmarkedge_add (last, this, E);
             unmarkedge_del (this, newlast, E);
         }
@@ -965,7 +901,7 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
 
 static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
         CClk_flipper *F, int len_t1_t2, int t1, int t2, flipstack *fstack,
-        CCptrworld *intptr_world, CCptrworld *edgelook_world)
+        mpool *pool)
 {
     int t3, t4, t5, t6, t7, t8;
     int oldG, gain, tG, Gstar = 0, val, hit;
@@ -974,7 +910,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
 
     (void)t3prev;
 
-    list = weird_look_ahead (G, D, F, len_t1_t2, t1, t2, edgelook_world);
+    list = weird_look_ahead (G, D, F, len_t1_t2, t1, t2, pool);
     for (h = list; h; h = h->next) {
         t3 = h->other;
         t4 = h->over;
@@ -992,7 +928,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
         G->weirdmark[t3] = G->weirdmagic;
         G->weirdmark[t4next] = G->weirdmagic;
 
-        list2 = weird_look_ahead2 (G, D, F, oldG, t2, t3, t4, edgelook_world);
+        list2 = weird_look_ahead2 (G, D, F, oldG, t2, t3, t4, pool);
         for (e = list2; e; e = e->next) {
             t5 = e->other;
             t6 = e->over;
@@ -1009,7 +945,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
 
                     markedge_del (t5, t6, E);
                     hit = step (G, D, E, Q, F, 2, gain, &Gstar, t1, t6,
-                                fstack, intptr_world, edgelook_world);
+                                fstack, pool);
                     unmarkedge_del (t5, t6, E);
 
                     if (!hit && Gstar)
@@ -1022,12 +958,12 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                         unmarkedge_add (t2, t3, E);
                         unmarkedge_del (t3, t4, E);
                         unmarkedge_add (t4, t5, E);
-                        MARK (t3, Q, F, D, G, intptr_world);
-                        MARK (t4, Q, F, D, G, intptr_world);
-                        MARK (t5, Q, F, D, G, intptr_world);
-                        MARK (t6, Q, F, D, G, intptr_world);
-                        edgelook_listfree (edgelook_world, list);
-                        edgelook_listfree (edgelook_world, list2);
+                        MARK (t3, Q, F, D, G, pool);
+                        MARK (t4, Q, F, D, G, pool);
+                        MARK (t5, Q, F, D, G, pool);
+                        MARK (t6, Q, F, D, G, pool);
+                        //edgelook_listfree (pool, list);
+                        //edgelook_listfree (pool, list2);
                         return Gstar;
                     }
                 } else {
@@ -1041,7 +977,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
 
                     markedge_del (t5, t6, E);
                     hit = step (G, D, E, Q, F, 2, gain, &Gstar, t1, t6,
-                                fstack, intptr_world, edgelook_world);
+                                fstack, pool);
                     unmarkedge_del (t5, t6, E);
 
                     if (!hit && Gstar)
@@ -1055,20 +991,19 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                         unmarkedge_add (t2, t3, E);
                         unmarkedge_del (t3, t4, E);
                         unmarkedge_add (t4, t5, E);
-                        MARK (t3, Q, F, D, G, intptr_world);
-                        MARK (t4, Q, F, D, G, intptr_world);
-                        MARK (t5, Q, F, D, G, intptr_world);
-                        MARK (t6, Q, F, D, G, intptr_world);
-                        edgelook_listfree (edgelook_world, list);
-                        edgelook_listfree (edgelook_world, list2);
+                        MARK (t3, Q, F, D, G, pool);
+                        MARK (t4, Q, F, D, G, pool);
+                        MARK (t5, Q, F, D, G, pool);
+                        MARK (t6, Q, F, D, G, pool);
+                        //edgelook_listfree (pool, list);
+                        //edgelook_listfree (pool, list2);
                         return Gstar;
                     }
                 }
             } else {
                 tG = oldG - e->diff;
                 markedge_del (t5, t6, E);
-                list3 = weird_look_ahead3 (G, D, F, tG, t2, t3, t6,
-                                           edgelook_world);
+                list3 = weird_look_ahead3 (G, D, F, tG, t2, t3, t6, pool);
                 for (f = list3; f; f = f->next) {
                     t7 = f->other;
                     t8 = f->over;
@@ -1084,7 +1019,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                         markedge_add (t6, t7, E);
                         markedge_del (t7, t8, E);
                         hit = step (G, D, E, Q, F, 3, gain, &Gstar, t1, t8,
-                                    fstack, intptr_world, edgelook_world);
+                                    fstack, pool);
                         unmarkedge_del (t6, t7, E);
                         unmarkedge_del (t7, t8, E);
 
@@ -1100,15 +1035,15 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                             unmarkedge_del (t3, t4, E);
                             unmarkedge_add (t4, t5, E);
                             unmarkedge_del (t5, t6, E);
-                            MARK (t3, Q, F, D, G, intptr_world);
-                            MARK (t4, Q, F, D, G, intptr_world);
-                            MARK (t5, Q, F, D, G, intptr_world);
-                            MARK (t6, Q, F, D, G, intptr_world);
-                            MARK (t7, Q, F, D, G, intptr_world);
-                            MARK (t8, Q, F, D, G, intptr_world);
-                            edgelook_listfree (edgelook_world, list);
-                            edgelook_listfree (edgelook_world, list2);
-                            edgelook_listfree (edgelook_world, list3);
+                            MARK (t3, Q, F, D, G, pool);
+                            MARK (t4, Q, F, D, G, pool);
+                            MARK (t5, Q, F, D, G, pool);
+                            MARK (t6, Q, F, D, G, pool);
+                            MARK (t7, Q, F, D, G, pool);
+                            MARK (t8, Q, F, D, G, pool);
+                            //edgelook_listfree (pool, list);
+                            //edgelook_listfree (pool, list2);
+                            //edgelook_listfree (pool, list3);
                             return Gstar;
                         }
                     } else {
@@ -1122,7 +1057,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                         markedge_add (t6, t7, E);
                         markedge_del (t7, t8, E);
                         hit = step (G, D, E, Q, F, 3, gain, &Gstar, t1, t8,
-                                    fstack, intptr_world, edgelook_world);
+                                    fstack, pool);
                         unmarkedge_add (t6, t7, E);
                         unmarkedge_del (t7, t8, E);
 
@@ -1138,34 +1073,34 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                             unmarkedge_del (t3, t4, E);
                             unmarkedge_add (t4, t5, E);
                             unmarkedge_del (t5, t6, E);
-                            MARK (t3, Q, F, D, G, intptr_world);
-                            MARK (t4, Q, F, D, G, intptr_world);
-                            MARK (t5, Q, F, D, G, intptr_world);
-                            MARK (t6, Q, F, D, G, intptr_world);
-                            MARK (t7, Q, F, D, G, intptr_world);
-                            MARK (t8, Q, F, D, G, intptr_world);
-                            edgelook_listfree (edgelook_world, list);
-                            edgelook_listfree (edgelook_world, list2);
-                            edgelook_listfree (edgelook_world, list3);
+                            MARK (t3, Q, F, D, G, pool);
+                            MARK (t4, Q, F, D, G, pool);
+                            MARK (t5, Q, F, D, G, pool);
+                            MARK (t6, Q, F, D, G, pool);
+                            MARK (t7, Q, F, D, G, pool);
+                            MARK (t8, Q, F, D, G, pool);
+                            //edgelook_listfree (pool, list);
+                            //edgelook_listfree (pool, list2);
+                            //edgelook_listfree (pool, list3);
                             return Gstar;
                         }
                     }
                 }
-                edgelook_listfree (edgelook_world, list3);
+                //edgelook_listfree (pool, list3);
                 unmarkedge_del (t5, t6, E);
             }
             unmarkedge_add (t4, t5, E);
         }
-        edgelook_listfree (edgelook_world, list2);
+        //edgelook_listfree (pool, list2);
         unmarkedge_add (t2, t3, E);
         unmarkedge_del (t3, t4, E);
     }
-    edgelook_listfree (edgelook_world, list);
+    //edgelook_listfree (pool, list);
     return 0;
 }
 
 static edgelook *look_ahead (graph *G, distobj *D, adddel *E, CClk_flipper *F,
-       int first, int last, int gain, int level, CCptrworld *edgelook_world)
+       int first, int last, int gain, int level, mpool *pool)
 {
     edgelook *list = (edgelook *) NULL, *el;
     int i, val;
@@ -1248,7 +1183,7 @@ static edgelook *look_ahead (graph *G, distobj *D, adddel *E, CClk_flipper *F,
 
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = edgelookalloc (edgelook_world);
+            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
             el->diff = value[i];
             el->other = other[i];
             el->over = save[i];
@@ -1339,7 +1274,7 @@ static void look_ahead_noback (graph *G, distobj *D, adddel *E, CClk_flipper *F,
 }
 
 static edgelook *weird_look_ahead (graph *G, distobj *D, CClk_flipper *F,
-        int gain, int t1, int t2, CCptrworld *edgelook_world)
+        int gain, int t1, int t2, mpool *pool)
 {
     edgelook *list, *el;
     int i, this, next;
@@ -1377,7 +1312,7 @@ static edgelook *weird_look_ahead (graph *G, distobj *D, CClk_flipper *F,
     }
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = edgelookalloc (edgelook_world);
+            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
             el->diff = value[i];
             el->other = other[i];
             el->over = save[i];
@@ -1389,7 +1324,7 @@ static edgelook *weird_look_ahead (graph *G, distobj *D, CClk_flipper *F,
 }
 
 static edgelook *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F,
-       int gain, int t2, int t3, int t4, CCptrworld *edgelook_world)
+       int gain, int t2, int t3, int t4, mpool *pool)
 {
     edgelook *list = (edgelook *) NULL;
     edgelook *el;
@@ -1469,7 +1404,7 @@ static edgelook *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F,
 
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = edgelookalloc (edgelook_world);
+            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
             el->diff = value[i];
             el->other = other[i];
             el->over = save[i];
@@ -1483,7 +1418,7 @@ static edgelook *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F,
 }
 
 static edgelook *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F,
-        int gain, int t2, int t3, int t6, CCptrworld *edgelook_world)
+        int gain, int t2, int t3, int t6, mpool *pool)
 {
     edgelook *list = (edgelook *) NULL;
     edgelook *el;
@@ -1541,7 +1476,7 @@ static edgelook *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F,
 
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = edgelookalloc (edgelook_world);
+            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
             el->diff = value[i];
             el->other = other[i];
             el->over = save[i];
@@ -1567,10 +1502,8 @@ static double cycle_length (int ncount, int *cyc, distobj *D)
 }
 
 static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
-       CCkdtree *kdt, int *delta, int kicktype, flipstack *win,
-       flipstack *fstack, CCptrworld *intptr_world)
+       int *delta, int kicktype, flipstack *win, flipstack *fstack, mpool *pool)
 {
-    int rval = 0;
     int t1, t2, t3, t4, t5, t6, t7, t8, temp;
 
     switch (kicktype) {
@@ -1582,13 +1515,6 @@ static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
         break;
     case CC_LK_CLOSE_KICK:
         find_close_four (G, D, F, &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8);
-        break;
-    case CC_LK_GEOMETRIC_KICK:
-        rval = find_geometric_four (G, D, F, kdt, &t1, &t2, &t3, &t4,
-                                                  &t5, &t6, &t7, &t8);
-        if (rval) {
-            fprintf (stderr, "find_geometric_four failed\n"); return 1;
-        }
         break;
     default:
         fprintf (stderr, "unknown kick type %d\n", kicktype); return 1;
@@ -1626,14 +1552,14 @@ static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
         win->counter++;
     }
 
-    bigturn (G ,t1, 0, Q, F, D, intptr_world);
-    bigturn (G, t2, 1, Q, F, D, intptr_world);
-    bigturn (G, t3, 0, Q, F, D, intptr_world);
-    bigturn (G, t4, 1, Q, F, D, intptr_world);
-    bigturn (G, t5, 0, Q, F, D, intptr_world);
-    bigturn (G, t6, 1, Q, F, D, intptr_world);
-    bigturn (G, t7, 0, Q, F, D, intptr_world);
-    bigturn (G, t8, 1, Q, F, D, intptr_world);
+    bigturn (G ,t1, 0, Q, F, D, pool);
+    bigturn (G, t2, 1, Q, F, D, pool);
+    bigturn (G, t3, 0, Q, F, D, pool);
+    bigturn (G, t4, 1, Q, F, D, pool);
+    bigturn (G, t5, 0, Q, F, D, pool);
+    bigturn (G, t6, 1, Q, F, D, pool);
+    bigturn (G, t7, 0, Q, F, D, pool);
+    bigturn (G, t8, 1, Q, F, D, pool);
 
     *delta =
            Edgelen (t1, t6, D) + Edgelen (t2, t5, D) +
@@ -1779,55 +1705,6 @@ TRYAGAIN:
     *t5 = s5; *t6 = s6; *t7 = s7; *t8 = s8;
 }
 
-#define GEO_FACTOR  50
-#define GEO_MAX    250
-
-static int find_geometric_four (graph *G, distobj *D, CClk_flipper *F,
-        CCkdtree *kdt, int *t1, int *t2, int *t3, int *t4, int *t5, int *t6,
-        int *t7, int *t8)
-{
-    int neigh[GEO_MAX];
-    int temp, i, k, s1, s2, s3, s4, s5, s6, s7, s8;
-    int trys, rval;
-
-    first_kicker (G, D, F, &s1, &s2);
-    trys = (G->ncount / GEO_FACTOR) + 25;
-    if (trys > GEO_MAX) trys = GEO_MAX;
-    if (trys > G->ncount - 1) trys = G->ncount - 1;
-
-    rval = CCkdtree_node_k_nearest (kdt, G->ncount, s1, trys, D->dat,
-                                    (double *) NULL, neigh);
-    if (rval) {
-        fprintf (stderr, "CCkdtree_node_k_nearest failed\n"); return rval;
-    }
-
-    for (i = trys; i > trys - 9; i--) {
-        k = rand() % i;
-        CC_SWAP (neigh[i - 1], neigh[k], temp);
-    }
-
-    k = trys - 1;
-    do {
-        s3 = neigh[k--];
-        s4 = CClinkern_flipper_next (F, s3);
-    } while (s3 == s2 || s4 == s1);
-
-    do {
-        s5 = neigh[k--];
-        s6 = CClinkern_flipper_next (F, s5);
-    } while (s5 == s2 || s5 == s4 || s6 == s1 || s6 == s3);
-
-    do {
-        s7 = neigh[k--];
-        s8 = CClinkern_flipper_next (F, s7);
-    } while (s7 == s2 || s7 == s4 || s7 == s6 || s8 == s1 || s8 == s3 ||
-             s8 == s5);
-
-    *t1 = s1; *t2 = s2; *t3 = s3; *t4 = s4;
-    *t5 = s5; *t6 = s6; *t7 = s7; *t8 = s8;
-
-    return 0;
-}
 
 #define WALK_STEPS 50
 
@@ -1894,22 +1771,22 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
 
 #ifdef USE_LESS_MARKING
 
-static void turn (int n, aqueue *Q, CCptrworld *intptr_world)
+static void turn (int n, aqueue *Q, mpool *pool)
 
 #else /* USE_LESS_MARKING */
 
-static void turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world)
+static void turn (int n, aqueue *Q, CClk_flipper *F, mpool *pool)
 
 #endif /* USE_LESS_MARKING */
 {
-    add_to_active_queue (n, Q, intptr_world);
+    add_to_active_queue (n, Q, pool);
 
 #ifdef MARK_NEIGHBORS
     {
        int i = 0;
        for (i = 0; i < bigG->degree[n]; i++) {
            if (rand() % 2) {
-               add_to_active_queue (bigG->goodlist[n][i].other, Q, intptr_world);
+               add_to_active_queue (bigG->goodlist[n][i].other, Q, pool);
            }
        }
    }
@@ -1918,59 +1795,59 @@ static void turn (int n, aqueue *Q, CClk_flipper *F, CCptrworld *intptr_world)
    {
         int k;
         k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
         k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
         k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
         k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
    }
 #endif
 #endif
 }
 
 static void kickturn (int n, aqueue *Q, distobj *D,
-        graph *G, CClk_flipper *F, CCptrworld *intptr_world)
+        graph *G, CClk_flipper *F, mpool *pool)
 {
     (void)D;
     (void)G;
-    add_to_active_queue (n, Q, intptr_world);
+    add_to_active_queue (n, Q, pool);
     {
         int k;
         k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
         k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
         k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
         k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, intptr_world);
+        add_to_active_queue (k, Q, pool);
     }
 }
 
 static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
-        distobj *D, CCptrworld *intptr_world)
+        distobj *D, mpool *pool)
 {
     int i, k;
 
     (void)D;
 
-    add_to_active_queue (n, Q, intptr_world);
+    add_to_active_queue (n, Q, pool);
     if (tonext) {
         for (i = 0, k = n; i < MARK_LEVEL; i++) {
             k = CClinkern_flipper_next (F, k);
-            add_to_active_queue (k, Q, intptr_world);
+            add_to_active_queue (k, Q, pool);
         }
     } else {
         for (i = 0, k = n; i < MARK_LEVEL; i++) {
             k = CClinkern_flipper_prev (F, k);
-            add_to_active_queue (k, Q, intptr_world);
+            add_to_active_queue (k, Q, pool);
         }
     }
 
     for (i = 0; i < G->degree[n]; i++) {
-        add_to_active_queue (G->goodlist[n][i].other, Q, intptr_world);
+        add_to_active_queue (G->goodlist[n][i].other, Q, pool);
     }
 }
 
@@ -2059,21 +1936,6 @@ static void insertedge (graph *G, int n1, int n2, int w)
     G->degree[n1]++;
 }
 
-static void linkern_free_world (CCptrworld *intptr_world,
-        CCptrworld *edgelook_world)
-{
-    int total, onlist;
-
-    if (intptr_check_leaks (intptr_world, &total, &onlist)) {
-        fprintf (stderr, "WARNING: %d outstanding intptrs\n", total-onlist);
-    }
-    if (edgelook_check_leaks (edgelook_world, &total, &onlist)) {
-        fprintf (stderr, "WARNING: %d outstanding edgelooks\n", total-onlist);
-    }
-    CCptrworld_delete (intptr_world);
-    CCptrworld_delete (edgelook_world);
-}
-
 static int init_flipstack (flipstack *f, int total, int single)
 {
     f->counter = 0;
@@ -2146,17 +2008,18 @@ static void init_aqueue (aqueue *Q)
     Q->bottom_active_queue = (intptr *) NULL;
 }
 
-static void free_aqueue (aqueue *Q, CCptrworld *intptr_world)
+static void free_aqueue (aqueue *Q, mpool *pool)
 {
     if (Q) {
         CC_IFFREE (Q->active, char);
-        intptr_listfree (intptr_world, Q->active_queue);
+        (void)pool;
+        // intptr_listfree (intptr_world, Q->active_queue);
         Q->active_queue = (intptr *) NULL;
         Q->bottom_active_queue = (intptr *) NULL;
     }
 }
 
-static int build_aqueue (aqueue *Q, int ncount, CCptrworld *intptr_world)
+static int build_aqueue (aqueue *Q, int ncount, mpool *pool)
 {
     int rval = 0;
     int i;
@@ -2173,21 +2036,17 @@ static int build_aqueue (aqueue *Q, int ncount, CCptrworld *intptr_world)
 CLEANUP:
 
     if (rval) {
-        free_aqueue (Q, intptr_world);
+        free_aqueue (Q, pool);
     }
     return rval;
 }
 
-static void add_to_active_queue (int n, aqueue *Q, CCptrworld *intptr_world)
+static void add_to_active_queue (int n, aqueue *Q, mpool *pool)
 {
     intptr *ip;
-
-    /* intptralloc will not fail - the initial supply reserved with
-     * intptr_bulkalloc is large enough */
-
     if (Q->active[n] == 0) {
         Q->active[n] = 1;
-        ip = intptralloc (intptr_world);
+        ip = (intptr *)mpool_alloc(pool, sizeof(intptr));
         ip->this = n;
         ip->next = (intptr *) NULL;
         if (Q->bottom_active_queue) {
@@ -2199,7 +2058,7 @@ static void add_to_active_queue (int n, aqueue *Q, CCptrworld *intptr_world)
     }
 }
 
-static int pop_from_active_queue (aqueue *Q, CCptrworld *intptr_world)
+static int pop_from_active_queue (aqueue *Q, mpool *pool)
 {
     intptr *ip;
     int n = -1;
@@ -2211,7 +2070,8 @@ static int pop_from_active_queue (aqueue *Q, CCptrworld *intptr_world)
         if (ip == Q->bottom_active_queue) {
             Q->bottom_active_queue = (intptr *) NULL;
         }
-        intptrfree (intptr_world, ip);
+        (void)pool;
+        //intptrfree (pool, ip);
         Q->active[n] = 0;
     }
     return n;
