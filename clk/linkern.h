@@ -18,15 +18,9 @@
 
 #include "util.h"
 
-#define CC_LK_RANDOM_KICK    (0)
-#define CC_LK_CLOSE_KICK     (1)
-#define CC_LK_WALK_KICK      (2)
-
-
-
 int
     CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
         int *elist, int stallcount, int repeatcount, int *incycle,
-        int *outcycle, double *val, int silent, int kicktype);
+        int *outcycle, double *val, int silent);
 
 #endif  /* __LINKERN_H */

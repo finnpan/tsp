@@ -9,17 +9,16 @@
 /*  contact the authors for licensing options.                              */
 /*                                                                          */
 /*  Use at your own risk.  We make no guarantees about the                  */
-/*  correctness or usefulness of this code.                                 */
+/*  correctness or usefulness of curr code.                                 */
 /*                                                                          */
 /****************************************************************************/
 
 /****************************************************************************/
 /*  int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,           */
 /*      int *elist, int stallcount, int repeatcount, int *incycle,          */
-/*      int *outcycle, double *val                                          */
-/*      int silent, int kicktype)                                           */
+/*      int *outcycle, double *val, int silent)                             */
 /*    RUNS Chained Lin-Kernighan.                                           */
-/*    -ncount (the number of nodes int the graph)                           */
+/*    -ncount (the number of nodes in the graph)                            */
 /*    -dat (coordinate dat)                                                 */
 /*    -ecount (the number of good edges - should not be 0)                  */
 /*    -elist (the good edges in end1 end2 format)                           */
@@ -28,8 +27,6 @@
 /*    -incycle (a starting cycle, in node node node format - can be NULL)   */
 /*    -outcycle (returns the cycle - can be NULL)                           */
 /*    -run_slightly (if nonzero, then very little info will be printed)     */
-/*    -kicktype (specifies the type of kick used - should be one of         */
-/*       CC_LK_RANDOM_KICK, CC_LK_CLOSE_KICK, or CC_LK_WALK_KICK)           */
 /*                                                                          */
 /*    NOTES: If incycle is NULL, then a random starting cycle is used. If   */
 /*     outcycle is not NULL, then it should point to an array of length     */
@@ -37,28 +34,16 @@
 /*                                                                          */
 /****************************************************************************/
 
+#include <vector>
+#include <list>
+#include <algorithm>
+
 #include "linkern.h"
 #include "flipper.h"
-#include "mpool.h"
 
 #define MAXDEPTH       25   /* Shouldn't really be less than 2.             */
 #define KICK_MAXDEPTH  50
 #define IMPROVE_SWITCH -1   /* When to start using IMPROVE_KICKS (-1 never) */
-#define LONG_KICKER
-#define ACCEPT_TIES
-#undef  ACCEPT_BAD_TOURS
-
-#define USE_LESS_OR_EQUAL
-#define SUBTRACT_GSTAR
-#undef  SWITCH_LATE
-#define LATE_DEPTH 10      /* Should be less than MAXDEPTH                 */
-
-#define MAK_MORTON
-#undef  FULL_MAK_MORTON
-#undef  NODE_INSERTIONS
-
-#undef  MARK_NEIGHBORS      /* Mark the good-edge neighbors after swaps     */
-#define USE_LESS_MARKING    /* Do not mark the tour neighbors after swaps   */
 #define MARK_LEVEL 10       /* Number of tour neighbors after 4-swap kick   */
 #define BACKTRACK   4
 #define MAX_BACK   12       /* Upper bound on the XXX_count entries         */
@@ -66,10 +51,7 @@ static const int backtrack_count[BACKTRACK] = {4, 3, 3, 2};
 static const int weird_backtrack_count[3] = {4, 3, 3};
 
 #define BIGINT 2000000000
-#define Edgelen(n1, n2, D)  dist (n1, n2, D)
-/*
-#define Edgelen(n1, n2, D)  CCutil_dat_edgelen (n1, n2, D->dat)
-*/
+#define Edgelen(n1, n2, D)  CCutil_dat_edgelen (n1, n2, D)
 
 #define FLIP(aprev, a, b, bnext, f, x) {                                   \
     CClinkern_flipper_flip ((x),(a), (b));                                 \
@@ -82,11 +64,7 @@ static const int weird_backtrack_count[3] = {4, 3, 3};
     (f)->counter--;                                                        \
 }
 
-#ifdef USE_LESS_MARKING
-#define MARK(xn, xQ, xF, xD, xG, xW)  turn ((xn), (xQ), (xW))
-#else
-#define MARK(xn, xQ, xF, xD, xG, xW)  turn ((xn), (xQ), (xF), (xW))
-#endif
+#define MARK(xn, xQ, xF, xD, xG)  turn ((xn), (xQ))
 
 #define markedge_add(n1, n2, E)    E->add_edges[n1 ^ n2] = 1
 #define markedge_del(n1, n2, E)    E->del_edges[n1 ^ n2] = 1
@@ -101,25 +79,13 @@ typedef struct edge {
 } edge;
 
 typedef struct edgelook {
-    struct edgelook *next;
     int other;
     int diff;
     int over;
     int seq;
     int side;
-#ifdef MAK_MORTON
     int mm;
-#endif
-#ifdef NODE_INSERTIONS
-    int ni;
-    int under;
-#endif
 } edgelook;
-
-typedef struct intptr {
-    int this;
-    struct intptr *next;
-} intptr;
 
 typedef struct flippair {
     int firstprev;
@@ -143,13 +109,6 @@ typedef struct graph {
     int   ncount;
 } graph;
 
-typedef struct distobj {
-    CCdatagroup *dat;
-    int       *cacheval;
-    int       *cacheind;
-    int        cacheM;
-} distobj;
-
 typedef struct adddel {
     char *add_edges;
     char *del_edges;
@@ -157,30 +116,21 @@ typedef struct adddel {
 
 typedef struct aqueue {
     char *active;
-    intptr *active_queue;
-    intptr *bottom_active_queue;
+    std::list<int> qu;
 } aqueue;
 
 
 static void
-   lin_kernighan (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       double *val, int *win_cycle, flipstack *w, flipstack *fstack, mpool *pool),
-   look_ahead_noback (graph *G, distobj *D, adddel *E, CClk_flipper *F,
+   lin_kernighan (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
+       double *val, int *win_cycle, flipstack *w, flipstack *fstack),
+   look_ahead_noback (graph *G, CCdatagroup *D, adddel *E, CClk_flipper *F,
        int first, int last, int gain, edgelook *winner),
-#ifdef USE_LESS_MARKING
-   turn (int n, aqueue *Q, mpool *pool),
-#else
-   turn (int n, aqueue *Q, CClk_flipper *F, mpool *pool),
-#endif
-   kickturn (int n, aqueue *Q, distobj *D, graph *G, CClk_flipper *F, mpool *pool),
+   turn (int n, aqueue *Q),
+   kickturn (int n, aqueue *Q, CCdatagroup *D, graph *G, CClk_flipper *F),
    bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
-        distobj *D, mpool *pool),
-   first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1, int *t2),
-   find_random_four (graph *G, distobj *D, CClk_flipper *F, int *t1, int *t2,
-       int *t3, int *t4, int *t5, int *t6, int *t7, int *t8),
-   find_close_four (graph *G, distobj *D, CClk_flipper *F, int *t1, int *t2,
-       int *t3, int *t4, int *t5, int *t6, int *t7, int *t8),
-   find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
+        CCdatagroup *D),
+   first_kicker (graph *G, CCdatagroup *D, CClk_flipper *F, int *t1, int *t2),
+   find_walk_four (graph *G, CCdatagroup *D, CClk_flipper *F, int *t1,
         int *t2, int *t3, int *t4, int *t5, int *t6, int *t7, int *t8),
    insertedge (graph *G, int n1, int n2, int w),
    initgraph (graph *G),
@@ -188,75 +138,65 @@ static void
    init_adddel (adddel *E),
    free_adddel (adddel *E),
    init_aqueue (aqueue *Q),
-   free_aqueue (aqueue *Q, mpool *pool),
-   add_to_active_queue (int n, aqueue *Q, mpool *pool),
-   init_distobj (distobj *D),
-   free_distobj (distobj *D),
+   free_aqueue (aqueue *Q),
+   add_to_active_queue (int n, aqueue *Q),
    free_flipstack (flipstack *f);
 
 static int
-   buildgraph (graph *G, int ncount, int ecount, int *elist, distobj *D),
-   repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
-       int stallcount, int repeatcount, double *val, int silent, int kicktype,
-       mpool *pool),
-   weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
-       CClk_flipper *F, int gain, int t1, int t2, flipstack *fstack,
-       mpool *pool),
-   step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       int level, int gain, int *Gstar, int first, int last, flipstack *fstack,
-       mpool *pool),
-   step_noback (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
+   buildgraph (graph *G, int ncount, int ecount, int *elist, CCdatagroup *D),
+   repeated_lin_kernighan (graph *G, CCdatagroup *D, int *cyc,
+       int stallcount, int repeatcount, double *val, int silent),
+   weird_second_step (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
+       CClk_flipper *F, int gain, int t1, int t2, flipstack *fstack),
+   step (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
+       int level, int gain, int *Gstar, int first, int last, flipstack *fstack),
+   step_noback (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
        int level, int gain, int *Gstar, int first, int last,
-       flipstack *fstack, mpool *pool),
-   kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
+       flipstack *fstack),
+   kick_step_noback (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
        int level, int gain, int *Gstar, int first, int last, flipstack *win,
-       flipstack *fstack, mpool *pool),
-   random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
-       int *delta, int kicktype, flipstack *win, flipstack *fstack, mpool *pool),
+       flipstack *fstack),
+   random_four_swap (graph *G, CCdatagroup *D, aqueue *Q, CClk_flipper *F,
+       int *delta, flipstack *win, flipstack *fstack),
    build_adddel (adddel *E, int ncount),
-   build_aqueue (aqueue *Q, int ncount, mpool *pool),
-   pop_from_active_queue (aqueue *Q, mpool *pool),
-   build_distobj (distobj *D, int ncount, CCdatagroup *dat),
-   dist (int i, int j, distobj *D),
+   build_aqueue (aqueue *Q, int ncount),
+   pop_from_active_queue (aqueue *Q),
    init_flipstack (flipstack *f, int total, int single);
 
 static double
-   improve_tour (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       int start, flipstack *fstack, mpool *pool),
-   kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
-       flipstack *win, flipstack *fstack, mpool *pool),
-   cycle_length (int ncount, int *cyc, distobj *D);
+   improve_tour (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
+       int start, flipstack *fstack),
+   kick_improve (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
+       flipstack *win, flipstack *fstack),
+   cycle_length (int ncount, int *cyc, CCdatagroup *D);
 
-static edgelook
-   *look_ahead (graph *G, distobj *D, adddel *E, CClk_flipper *F, int first,
-       int last, int gain, int level, mpool *pool),
-   *weird_look_ahead  (graph *G, distobj *D, CClk_flipper *F, int gain, int t1,
-       int t2, mpool *pool),
-   *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F, int gain, int t2,
-       int t3, int t4, mpool *pool),
-   *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F, int gain, int t2,
-       int t3, int t6, mpool *pool);
+static std::vector<edgelook>
+   look_ahead (graph *G, CCdatagroup *D, adddel *E, CClk_flipper *F, int first,
+       int last, int gain, int level),
+   weird_look_ahead (graph *G, CCdatagroup *D, CClk_flipper *F, int gain, int t1,
+       int t2),
+   weird_look_ahead2 (graph *G, CCdatagroup *D, CClk_flipper *F, int gain, int t2,
+       int t3, int t4),
+   weird_look_ahead3 (graph *G, CCdatagroup *D, CClk_flipper *F, int gain, int t2,
+       int t3, int t6);
 
 
 int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
         int *elist, int stallcount, int repeatcount, int *incycle,
-        int *outcycle, double *val, int silent, int kicktype)
+        int *outcycle, double *val, int silent)
 {
     int rval = 0;
     int i;
     int *tcyc = (int *) NULL;
     double startzeit;
     graph G;
-    distobj D;
-    mpool *pool = mpool_init(4, 12);
 
-    if (silent == 0) {
+    if (silent != 1) {
         printf ("linkern ...\n"); fflush (stdout);
     }
     startzeit = CCutil_zeit ();
 
     initgraph (&G);
-    init_distobj (&D);
 
     if (ncount < 10 && repeatcount > 0) {
         printf ("Less than 10 nodes, setting repeatcount to 0\n");
@@ -270,10 +210,7 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
         rval = 1; goto CLEANUP;
     }
 
-    rval = build_distobj (&D, ncount, dat);
-    if (rval) goto CLEANUP;
-
-    rval = buildgraph (&G, ncount, ecount, elist, &D);
+    rval = buildgraph (&G, ncount, ecount, elist, dat);
     if (rval) {
         fprintf (stderr, "buildgraph failed\n"); goto CLEANUP;
     }
@@ -283,18 +220,18 @@ int CClinkern_tour (int ncount, CCdatagroup *dat, int ecount,
     } else {
         CCutil_randcycle (ncount, tcyc);
     }
-    *val = cycle_length (ncount, tcyc, &D);
-    if (silent == 0) {
+    *val = cycle_length (ncount, tcyc, dat);
+    if (silent != 1) {
         printf ("Starting Cycle: %.0f\n", *val); fflush (stdout);
     }
 
-    rval = repeated_lin_kernighan (&G, &D, tcyc, stallcount, repeatcount,
-                 val, silent, kicktype, pool);
+    rval = repeated_lin_kernighan (&G, dat, tcyc, stallcount, repeatcount,
+                 val, silent);
     if (rval) {
         fprintf (stderr, "repeated_lin_kernighan failed\n"); goto CLEANUP;
     }
 
-    if (silent == 0) {
+    if (silent != 1) {
         printf ("Best cycle length: %.0f\n", *val);
         printf ("Lin-Kernighan Running Time: %.2f\n",
                   CCutil_zeit () - startzeit);
@@ -309,20 +246,12 @@ CLEANUP:
 
     CC_IFFREE (tcyc, int);
     freegraph (&G);
-    free_distobj (&D);
-    mpool_free(pool);
 
     return rval;
 }
 
-#ifdef ACCEPT_BAD_TOURS
-#define HEAT_FACTOR 0.999
-#define HEAT_RESET 100000
-#endif
-
-static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
-        int stallcount, int count, double *val, int silent, int kicktype,
-        mpool *pool)
+static int repeated_lin_kernighan (graph *G, CCdatagroup *D, int *cyc,
+        int stallcount, int count, double *val, int silent)
 {
     int rval    = 0;
     int round   = 0;
@@ -331,9 +260,6 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
     flipstack winstack, fstack;
     double t, best = *val, oldbest = *val;
     double szeit = CCutil_zeit ();
-#ifdef ACCEPT_BAD_TOURS
-    double heat = *val / (20 * G->ncount), tdelta;
-#endif
     int ncount = G->ncount;
     adddel E;
     CClk_flipper F;
@@ -343,7 +269,7 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
 
     init_aqueue (&Q);
     init_adddel (&E);
-    rval = build_aqueue (&Q, ncount, pool);
+    rval = build_aqueue (&Q, ncount);
     if (rval) {
         fprintf (stderr, "build_aqueue failed\n"); goto CLEANUP;
     }
@@ -389,17 +315,17 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         /* init active_queue with random order */
         CCutil_randcycle (ncount, tcyc);
         for (i = 0; i < ncount; i++) {
-            add_to_active_queue (tcyc[i], &Q, pool);
+            add_to_active_queue (tcyc[i], &Q);
         }
         CC_IFFREE (tcyc, int);
     }
 
-    lin_kernighan (G, D, &E, &Q, &F, &best, win_cycle, &winstack, &fstack, pool);
+    lin_kernighan (G, D, &E, &Q, &F, &best, win_cycle, &winstack, &fstack);
 
     winstack.counter = 0;
     win_cycle[0] = -1;
 
-    if (silent == 0) {
+    if (silent != 1) {
         if (quitcount > 0) {
             printf ("%4d Steps   Best: %.0f   %.2f seconds\n", round, best,
                                 CCutil_zeit () - szeit);
@@ -414,36 +340,20 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
         fstack.counter = 0;
 
         if (IMPROVE_SWITCH == -1 || round < IMPROVE_SWITCH) {
-            rval = random_four_swap (G, D, &Q, &F, &delta, kicktype,
-                                     &winstack, &fstack, pool);
+            rval = random_four_swap (G, D, &Q, &F, &delta,
+                                     &winstack, &fstack);
             if (rval) {
                 fprintf (stderr, "random_four_swap failed\n"); goto CLEANUP;
             }
         } else {
-            delta = kick_improve (G, D, &E, &Q, &F, &winstack, &fstack, pool);
+            delta = kick_improve (G, D, &E, &Q, &F, &winstack, &fstack);
         }
 
         fstack.counter = 0;
         t = best + delta;
-        lin_kernighan (G, D, &E, &Q, &F, &t, win_cycle, &winstack, &fstack, pool);
+        lin_kernighan (G, D, &E, &Q, &F, &t, win_cycle, &winstack, &fstack);
 
-#ifdef ACCEPT_BAD_TOURS
-        if (round % HEAT_RESET == HEAT_RESET - 1) {
-            heat = oldbest / (20 * ncount);
-            printf ("Reset Accept-Probablility\n");
-            fflush (stdout);
-        }
-        tdelta = t - best;
-        heat *= HEAT_FACTOR;
-        if (t < best || (t > best && exp (-tdelta/heat) >
-            (double) (rand() % ncount) / (double) ncount)) {
-#else
-#ifdef ACCEPT_TIES
         if (t <= best) {
-#else
-        if (t < best) {
-#endif /* ACCEPT_TIES */
-#endif /* ACCEPT_BAD_TOURS */
             winstack.counter = 0;
             win_cycle[0] = -1;
             if (t < best) {
@@ -453,17 +363,6 @@ static int repeated_lin_kernighan (graph *G, distobj *D, int *cyc,
                     quitcount = count;
                 hit++;
             }
-#ifdef ACCEPT_BAD_TOURS
-            else {
-                if (silent == 0 && t > best) {
-printf ("%4d Steps   Best: %.0f   %.2f seconds (Negative %.0f) (%.0f)\n",
-                          round, t, CCutil_zeit () - szeit, t - best, oldbest);
-                    fflush (stdout);
-                }
-                oldbest = best;
-                best = t;
-            }
-#endif
         } else {
             if (win_cycle[0] == -1) {
                 while (winstack.counter) {
@@ -486,13 +385,13 @@ printf ("%4d Steps   Best: %.0f   %.2f seconds (Negative %.0f) (%.0f)\n",
         }
 
         round++;
-        if (silent == 0 && (hit || (round % 1000 == 999))) {
+        if (silent != 1 && (hit || (round % 1000 == 999))) {
             printf ("%4d Steps   Best: %.0f   %.2f seconds\n",
                                round, best, CCutil_zeit () - szeit);
             fflush (stdout);
         }
     }
-    if (silent == 0 && round > 0) {
+    if (silent != 1 && round > 0) {
         printf ("%4d Total Steps.\n", round); fflush (stdout);
     }
 
@@ -509,7 +408,7 @@ printf ("%4d Steps   Best: %.0f   %.2f seconds (Negative %.0f) (%.0f)\n",
 
 CLEANUP:
 
-    free_aqueue (&Q, pool);
+    free_aqueue (&Q);
     free_adddel (&E);
     free_flipstack (&fstack);
     free_flipstack (&winstack);
@@ -517,18 +416,18 @@ CLEANUP:
     return rval;
 }
 
-static void lin_kernighan (graph *G, distobj *D, adddel *E, aqueue *Q,
+static void lin_kernighan (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
         CClk_flipper *F, double *val, int *win_cycle, flipstack *win,
-        flipstack *fstack, mpool *pool)
+        flipstack *fstack)
 {
     int start, i;
     double delta, totalwin = 0.0;
 
     while (1) {
-        start = pop_from_active_queue (Q, pool);
+        start = pop_from_active_queue (Q);
         if (start == -1) break;
 
-        delta = improve_tour (G, D, E, Q, F, start, fstack, pool);
+        delta = improve_tour (G, D, E, Q, F, start, fstack);
         if (delta > 0.0) {
             totalwin += delta;
             if (win->counter < win->max) {
@@ -563,8 +462,8 @@ static void lin_kernighan (graph *G, distobj *D, adddel *E, aqueue *Q,
     (*val) -= totalwin;
 }
 
-static double improve_tour (graph *G, distobj *D, adddel *E, aqueue *Q,
-        CClk_flipper *F, int t1, flipstack *fstack, mpool *pool)
+static double improve_tour (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
+        CClk_flipper *F, int t1, flipstack *fstack)
 {
     int t2 = CClinkern_flipper_next (F, t1);
     int gain, Gstar = 0;
@@ -572,182 +471,79 @@ static double improve_tour (graph *G, distobj *D, adddel *E, aqueue *Q,
     gain = Edgelen (t1, t2, D);
     markedge_del (t1, t2, E);
 
-    if (step (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, fstack, pool)
+    if (step (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, fstack)
         == 0) {
-        Gstar = weird_second_step (G, D, E, Q, F, gain, t1, t2, fstack, pool);
+        Gstar = weird_second_step (G, D, E, Q, F, gain, t1, t2, fstack);
     }
     unmarkedge_del (t1, t2, E);
 
     if (Gstar) {
-        MARK (t1, Q, F, D, G, pool);
-        MARK(t2, Q, F, D, G, pool);
+        MARK (t1, Q, F, D, G);
+        MARK(t2, Q, F, D, G);
     }
     return (double) Gstar;
 }
 
-static int step (graph *G, distobj *D, adddel *E, aqueue *Q, CClk_flipper *F,
+static int step (graph *G, CCdatagroup *D, adddel *E, aqueue *Q, CClk_flipper *F,
         int level, int gain, int *Gstar, int first, int last,
-        flipstack *fstack, mpool *pool)
+        flipstack *fstack)
 {
-    int val, this, newlast, hit = 0, oldG = gain;
-#if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
-    int newfirst;
-#endif
-    edgelook *list, *e;
+    int val, curr, newlast, hit = 0, oldG = gain;
 
     if (level >= BACKTRACK) {
         return step_noback (G, D, E, Q, F, level, gain, Gstar, first, last,
-                            fstack, pool);
+                            fstack);
     }
 
-    list = look_ahead (G, D, E, F, first, last, gain, level, pool);
-    for (e = list; e; e = e->next) {
-#if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
-        if (e->mm) {
-            this = e->other;
-            newfirst = e->over;
-
-            gain = oldG - e->diff;
-            val = gain - Edgelen (newfirst, last, D);
-            if (val > *Gstar) {
-                *Gstar = val;
-                hit++;
-            }
-            FLIP (this, newfirst, first, last, fstack, F);
-
-            if (level < MAXDEPTH) {
-                markedge_add (first, this, E);
-                markedge_del (this, newfirst, E);
-                hit += step (G, D, E, Q, F, level + 1, gain, Gstar, newfirst,
-                             last, fstack, pool);
-                unmarkedge_add (first, this, E);
-                unmarkedge_del (this, newfirst, E);
-            }
-
-            if (!hit) {
-                UNFLIP (this, newfirst, first, last, fstack, F);
-            } else {
-                MARK (this, Q, F, D, G, pool);
-                MARK (newfirst, Q, F, D, G, pool);
-                //edgelook_listfree (pool, list);
-                return 1;
-            }
-        } else
-#endif
+    auto list = look_ahead (G, D, E, F, first, last, gain, level);
+    for (const auto& e : list) {
         {
-            this = e->other;
-            newlast = e->over;
+            curr = e.other;
+            newlast = e.over;
 
-            gain = oldG - e->diff;
+            gain = oldG - e.diff;
             val = gain - Edgelen (newlast, first, D);
             if (val > *Gstar) {
                 *Gstar = val;
                 hit++;
             }
 
-            FLIP (first, last, newlast, this, fstack, F);
+            FLIP (first, last, newlast, curr, fstack, F);
 
             if (level < MAXDEPTH) {
-                markedge_add (last, this, E);
-                markedge_del (this, newlast, E);
+                markedge_add (last, curr, E);
+                markedge_del (curr, newlast, E);
                 hit += step (G, D, E, Q, F, level + 1, gain, Gstar, first,
-                             newlast, fstack, pool);
-                unmarkedge_add (last, this, E);
-                unmarkedge_del (this, newlast, E);
+                             newlast, fstack);
+                unmarkedge_add (last, curr, E);
+                unmarkedge_del (curr, newlast, E);
             }
 
             if (!hit) {
-                UNFLIP (first, last, newlast, this, fstack, F);
+                UNFLIP (first, last, newlast, curr, fstack, F);
             } else {
-                MARK (this, Q, F, D, G, pool);
-                MARK (newlast, Q, F, D, G, pool);
-                //edgelook_listfree (pool, list);
+                MARK (curr, Q, F, D, G);
+                MARK (newlast, Q, F, D, G);
                 return 1;
             }
         }
     }
-    //edgelook_listfree (pool, list);
     return 0;
 }
 
-static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
+static int step_noback (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
         CClk_flipper *F, int level, int gain, int *Gstar, int first, int last,
-        flipstack *fstack, mpool* pool)
+        flipstack *fstack)
 {
     edgelook e;
 
-#ifdef    SUBTRACT_GSTAR
-#ifdef    SWITCH_LATE
-    if (level < LATE_DEPTH) {
-        look_ahead_noback (G, D, E, F, first, last, gain - *Gstar, &e);
-    } else {
-        look_ahead_noback (G, D, E, F, first, last, gain - *Gstar - level, &e);
-    }
-#else
     look_ahead_noback (G, D, E, F, first, last, gain - *Gstar - level, &e);
-#endif /* SWITCH_LATE */
-#else
-#ifdef    SWITCH_LATE
-    if (level < LATE_DEPTH) {
-        look_ahead_noback (G, D, E, F, first, last, gain, &e);
-    } else {
-        look_ahead_noback (G, D, E, F, first, last, gain - level, &e);
-    }
-#else
-    look_ahead_noback (G, D, E, F, first, last, gain - level, &e);
-#endif /* SWITCH_LATE */
-#endif /* SUBTRACT_GSTAR */
 
     if (e.diff < BIGINT) {
-#ifdef NODE_INSERTIONS
-        if (e.ni) {
-            int hit = 0;
-            int newlast = e.other;
-            int next = e.under;
-            int prev = e.over;
-            int val;
-
-            gain -= e.diff;
-            val = gain - Edgelen (newlast, first, D);
-
-            if (val > *Gstar) {
-                *Gstar = val;
-                hit++;
-            }
-
-            FLIP (first, last, newlast, next, fstack, F);
-            FLIP (newlast, prev, last, next, fstack, F);
-
-            if (level < MAXDEPTH) {
-                markedge_add (last, newlast, E);
-                markedge_add (next, prev, E);
-                markedge_del (newlast, prev, E);
-                markedge_del (newlast, next, E);
-                hit += step_noback (G, D, E, Q, F, level+1, gain, Gstar, first,
-                                    newlast, fstack, pool);
-                unmarkedge_add (last, newlast, E);
-                unmarkedge_add (next, prev, E);
-                unmarkedge_del (newlast, prev, E);
-                unmarkedge_del (newlast, next, E);
-            }
-
-            if (!hit) {
-                UNFLIP (newlast, prev, last, next, fstack, F);
-                UNFLIP (first, last, newlast, next, fstack, F);
-                return 0;
-            } else {
-                MARK (newlast, Q, F, D, G, pool);
-                MARK (next, Q, F, D, G, pool);
-                MARK (prev, Q, F, D, G, pool);
-                return 1;
-            }
-        } else
-#endif /* NODE_INSERTIONS */
         {
-#ifdef MAK_MORTON
             if (e.mm) {
                 int hit = 0;
-                int this = e.other;
+                int curr = e.other;
                 int newfirst = e.over;
                 int val;
 
@@ -757,30 +553,29 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                     *Gstar = val;
                     hit++;
                 }
-                FLIP (this, newfirst, first, last, fstack, F);
+                FLIP (curr, newfirst, first, last, fstack, F);
 
                 if (level < MAXDEPTH) {
-                    markedge_add (first, this, E);
-                    markedge_del (this, newfirst, E);
+                    markedge_add (first, curr, E);
+                    markedge_del (curr, newfirst, E);
                     hit += step_noback (G, D, E, Q, F, level + 1, gain, Gstar,
-                                        newfirst, last, fstack, pool);
-                    unmarkedge_add (first, this, E);
-                    unmarkedge_del (this, newfirst, E);
+                                        newfirst, last, fstack);
+                    unmarkedge_add (first, curr, E);
+                    unmarkedge_del (curr, newfirst, E);
                 }
 
                 if (!hit) {
-                    UNFLIP (this, newfirst, first, last, fstack, F);
+                    UNFLIP (curr, newfirst, first, last, fstack, F);
                     return 0;
                 } else {
-                    MARK (this, Q, F, D, G, pool);
-                    MARK (newfirst, Q, F, D, G, pool);
+                    MARK (curr, Q, F, D, G);
+                    MARK (newfirst, Q, F, D, G);
                     return 1;
                 }
             } else
-#endif  /* MAK_MORTON */
             {
                 int hit = 0;
-                int this = e.other;
+                int curr = e.other;
                 int newlast = e.over;
                 int val;
 
@@ -791,23 +586,23 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
                     hit++;
                 }
 
-                FLIP (first, last, newlast, this, fstack, F);
+                FLIP (first, last, newlast, curr, fstack, F);
 
                 if (level < MAXDEPTH) {
-                    markedge_add (last, this, E);
-                    markedge_del (this, newlast, E);
+                    markedge_add (last, curr, E);
+                    markedge_del (curr, newlast, E);
                     hit += step_noback (G, D, E, Q, F, level + 1, gain, Gstar,
-                                        first, newlast, fstack, pool);
-                    unmarkedge_add (last, this, E);
-                    unmarkedge_del (this, newlast, E);
+                                        first, newlast, fstack);
+                    unmarkedge_add (last, curr, E);
+                    unmarkedge_del (curr, newlast, E);
                 }
 
                 if (!hit) {
-                    UNFLIP (first, last, newlast, this, fstack, F);
+                    UNFLIP (first, last, newlast, curr, fstack, F);
                     return 0;
                 } else {
-                    MARK (this, Q, F, D, G, pool);
-                    MARK (newlast, Q, F, D, G, pool);
+                    MARK (curr, Q, F, D, G);
+                    MARK (newlast, Q, F, D, G);
                     return 1;
                 }
             }
@@ -817,8 +612,8 @@ static int step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
     }
 }
 
-static double kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q,
-        CClk_flipper *F, flipstack *win, flipstack *fstack, mpool *pool)
+static double kick_improve (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
+        CClk_flipper *F, flipstack *win, flipstack *fstack)
 {
     int t1, t2;
     int gain, Gstar = 0;
@@ -828,26 +623,25 @@ static double kick_improve (graph *G, distobj *D, adddel *E, aqueue *Q,
         first_kicker (G, D, F, &t1, &t2);
         gain = Edgelen (t1, t2, D);
         markedge_del (t1, t2, E);
-        hit = kick_step_noback (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, win,
-                                fstack, pool);
+        hit = kick_step_noback (G, D, E, Q, F, 0, gain, &Gstar, t1, t2, win, fstack);
         unmarkedge_del (t1, t2, E);
     } while (!hit);
 
-    kickturn (t1, Q, D, G, F, pool);
-    kickturn (t2, Q, D, G, F, pool);
+    kickturn (t1, Q, D, G, F);
+    kickturn (t2, Q, D, G, F);
 
     return (double) -Gstar;
 }
 
 #define G_MULT 1.5
 
-static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
+static int kick_step_noback (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
         CClk_flipper *F, int level, int gain, int *Gstar, int first, int last,
-        flipstack *win, flipstack *fstack, mpool *pool)
+        flipstack *win, flipstack *fstack)
 {
     edgelook winner;
     int val;
-    int this, prev, newlast;
+    int curr, prev, newlast;
     int lastnext = CClinkern_flipper_next (F, last);
     int i;
     int cutoff = (int) (G_MULT * (double) gain);
@@ -855,15 +649,15 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
 
     winner.diff = BIGINT;
     for (i = 0; goodlist[last][i].weight < cutoff; i++) {
-        this = goodlist[last][i].other;
-        if (!is_it_deleted (last, this, E) && this != first &&
-                                              this != lastnext) {
-            prev = CClinkern_flipper_prev (F, this);
-            if (!is_it_added (this, prev, E)) {
-                val = goodlist[last][i].weight - Edgelen (this, prev, D);
+        curr = goodlist[last][i].other;
+        if (!is_it_deleted (last, curr, E) && curr != first &&
+                                              curr != lastnext) {
+            prev = CClinkern_flipper_prev (F, curr);
+            if (!is_it_added (curr, prev, E)) {
+                val = goodlist[last][i].weight - Edgelen (curr, prev, D);
                 if (val < winner.diff) {
                     winner.diff = val;
-                    winner.other = this;
+                    winner.other = curr;
                     winner.over = prev;
                 }
             }
@@ -871,14 +665,14 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
     }
 
     if (winner.diff < BIGINT) {
-        this = winner.other;
+        curr = winner.other;
         newlast = winner.over;
         gain -= winner.diff;
         *Gstar = gain - Edgelen (newlast, first, D);
 
-        FLIP (first, last, newlast, this, fstack, F);
-        kickturn (this, Q, D, G, F, pool);
-        kickturn (newlast, Q, D, G, F, pool);
+        FLIP (first, last, newlast, curr, fstack, F);
+        kickturn (curr, Q, D, G, F);
+        kickturn (newlast, Q, D, G, F);
         if (win->counter < win->max) {
             win->stack[win->counter].first = last;
             win->stack[win->counter].last = newlast;
@@ -886,12 +680,12 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
         }
 
         if (level < KICK_MAXDEPTH) {
-            markedge_add (last, this, E);
-            markedge_del (this, newlast, E);
+            markedge_add (last, curr, E);
+            markedge_del (curr, newlast, E);
             kick_step_noback (G, D, E, Q, F, level+1, gain, Gstar, first,
-                              newlast, win, fstack, pool);
-            unmarkedge_add (last, this, E);
-            unmarkedge_del (this, newlast, E);
+                              newlast, win, fstack);
+            unmarkedge_add (last, curr, E);
+            unmarkedge_del (curr, newlast, E);
         }
         return 1;
     } else {
@@ -899,23 +693,21 @@ static int kick_step_noback (graph *G, distobj *D, adddel *E, aqueue *Q,
     }
 }
 
-static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
-        CClk_flipper *F, int len_t1_t2, int t1, int t2, flipstack *fstack,
-        mpool *pool)
+static int weird_second_step (graph *G, CCdatagroup *D, adddel *E, aqueue *Q,
+        CClk_flipper *F, int len_t1_t2, int t1, int t2, flipstack *fstack)
 {
     int t3, t4, t5, t6, t7, t8;
     int oldG, gain, tG, Gstar = 0, val, hit;
     int t3prev, t4next;
-    edgelook *e, *f, *h, *list, *list2, *list3;
 
     (void)t3prev;
 
-    list = weird_look_ahead (G, D, F, len_t1_t2, t1, t2, pool);
-    for (h = list; h; h = h->next) {
-        t3 = h->other;
-        t4 = h->over;
+    auto list = weird_look_ahead (G, D, F, len_t1_t2, t1, t2);
+    for (const auto& h : list) {
+        t3 = h.other;
+        t4 = h.over;
 
-        oldG = len_t1_t2 - h->diff;
+        oldG = len_t1_t2 - h.diff;
 
         t3prev = CClinkern_flipper_prev (F, t3);
         t4next = CClinkern_flipper_next (F, t4);
@@ -928,15 +720,15 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
         G->weirdmark[t3] = G->weirdmagic;
         G->weirdmark[t4next] = G->weirdmagic;
 
-        list2 = weird_look_ahead2 (G, D, F, oldG, t2, t3, t4, pool);
-        for (e = list2; e; e = e->next) {
-            t5 = e->other;
-            t6 = e->over;
+        auto list2 = weird_look_ahead2 (G, D, F, oldG, t2, t3, t4);
+        for (const auto& e : list2) {
+            t5 = e.other;
+            t6 = e.over;
 
             markedge_add (t4, t5, E);
-            if (e->seq) {
-                if (!e->side) {
-                    gain = oldG - e->diff;
+            if (e.seq) {
+                if (!e.side) {
+                    gain = oldG - e.diff;
                     val = gain - Edgelen (t6, t1, D);
                     if (val > Gstar)
                         Gstar = val;
@@ -944,8 +736,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                     FLIP (t2, t5, t3, t4, fstack, F);
 
                     markedge_del (t5, t6, E);
-                    hit = step (G, D, E, Q, F, 2, gain, &Gstar, t1, t6,
-                                fstack, pool);
+                    hit = step (G, D, E, Q, F, 2, gain, &Gstar, t1, t6, fstack);
                     unmarkedge_del (t5, t6, E);
 
                     if (!hit && Gstar)
@@ -958,16 +749,14 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                         unmarkedge_add (t2, t3, E);
                         unmarkedge_del (t3, t4, E);
                         unmarkedge_add (t4, t5, E);
-                        MARK (t3, Q, F, D, G, pool);
-                        MARK (t4, Q, F, D, G, pool);
-                        MARK (t5, Q, F, D, G, pool);
-                        MARK (t6, Q, F, D, G, pool);
-                        //edgelook_listfree (pool, list);
-                        //edgelook_listfree (pool, list2);
+                        MARK (t3, Q, F, D, G);
+                        MARK (t4, Q, F, D, G);
+                        MARK (t5, Q, F, D, G);
+                        MARK (t6, Q, F, D, G);
                         return Gstar;
                     }
                 } else {
-                    gain = oldG - e->diff;
+                    gain = oldG - e.diff;
                     val = gain - Edgelen (t6, t1, D);
                     if (val > Gstar)
                         Gstar = val;
@@ -976,8 +765,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                     FLIP (t1, t3, t6, t2, fstack, F);
 
                     markedge_del (t5, t6, E);
-                    hit = step (G, D, E, Q, F, 2, gain, &Gstar, t1, t6,
-                                fstack, pool);
+                    hit = step (G, D, E, Q, F, 2, gain, &Gstar, t1, t6, fstack);
                     unmarkedge_del (t5, t6, E);
 
                     if (!hit && Gstar)
@@ -991,24 +779,22 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                         unmarkedge_add (t2, t3, E);
                         unmarkedge_del (t3, t4, E);
                         unmarkedge_add (t4, t5, E);
-                        MARK (t3, Q, F, D, G, pool);
-                        MARK (t4, Q, F, D, G, pool);
-                        MARK (t5, Q, F, D, G, pool);
-                        MARK (t6, Q, F, D, G, pool);
-                        //edgelook_listfree (pool, list);
-                        //edgelook_listfree (pool, list2);
+                        MARK (t3, Q, F, D, G);
+                        MARK (t4, Q, F, D, G);
+                        MARK (t5, Q, F, D, G);
+                        MARK (t6, Q, F, D, G);
                         return Gstar;
                     }
                 }
             } else {
-                tG = oldG - e->diff;
+                tG = oldG - e.diff;
                 markedge_del (t5, t6, E);
-                list3 = weird_look_ahead3 (G, D, F, tG, t2, t3, t6, pool);
-                for (f = list3; f; f = f->next) {
-                    t7 = f->other;
-                    t8 = f->over;
-                    gain = tG - f->diff;
-                    if (!f->side) {
+                auto list3 = weird_look_ahead3 (G, D, F, tG, t2, t3, t6);
+                for (const auto& f : list3) {
+                    t7 = f.other;
+                    t8 = f.over;
+                    gain = tG - f.diff;
+                    if (!f.side) {
                         val = gain - Edgelen (t8, t1, D);
                         if (val > Gstar)
                             Gstar = val;
@@ -1018,8 +804,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
 
                         markedge_add (t6, t7, E);
                         markedge_del (t7, t8, E);
-                        hit = step (G, D, E, Q, F, 3, gain, &Gstar, t1, t8,
-                                    fstack, pool);
+                        hit = step (G, D, E, Q, F, 3, gain, &Gstar, t1, t8, fstack);
                         unmarkedge_del (t6, t7, E);
                         unmarkedge_del (t7, t8, E);
 
@@ -1035,15 +820,12 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                             unmarkedge_del (t3, t4, E);
                             unmarkedge_add (t4, t5, E);
                             unmarkedge_del (t5, t6, E);
-                            MARK (t3, Q, F, D, G, pool);
-                            MARK (t4, Q, F, D, G, pool);
-                            MARK (t5, Q, F, D, G, pool);
-                            MARK (t6, Q, F, D, G, pool);
-                            MARK (t7, Q, F, D, G, pool);
-                            MARK (t8, Q, F, D, G, pool);
-                            //edgelook_listfree (pool, list);
-                            //edgelook_listfree (pool, list2);
-                            //edgelook_listfree (pool, list3);
+                            MARK (t3, Q, F, D, G);
+                            MARK (t4, Q, F, D, G);
+                            MARK (t5, Q, F, D, G);
+                            MARK (t6, Q, F, D, G);
+                            MARK (t7, Q, F, D, G);
+                            MARK (t8, Q, F, D, G);
                             return Gstar;
                         }
                     } else {
@@ -1056,8 +838,7 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
 
                         markedge_add (t6, t7, E);
                         markedge_del (t7, t8, E);
-                        hit = step (G, D, E, Q, F, 3, gain, &Gstar, t1, t8,
-                                    fstack, pool);
+                        hit = step (G, D, E, Q, F, 3, gain, &Gstar, t1, t8, fstack);
                         unmarkedge_add (t6, t7, E);
                         unmarkedge_del (t7, t8, E);
 
@@ -1073,66 +854,50 @@ static int weird_second_step (graph *G, distobj *D, adddel *E, aqueue *Q,
                             unmarkedge_del (t3, t4, E);
                             unmarkedge_add (t4, t5, E);
                             unmarkedge_del (t5, t6, E);
-                            MARK (t3, Q, F, D, G, pool);
-                            MARK (t4, Q, F, D, G, pool);
-                            MARK (t5, Q, F, D, G, pool);
-                            MARK (t6, Q, F, D, G, pool);
-                            MARK (t7, Q, F, D, G, pool);
-                            MARK (t8, Q, F, D, G, pool);
-                            //edgelook_listfree (pool, list);
-                            //edgelook_listfree (pool, list2);
-                            //edgelook_listfree (pool, list3);
+                            MARK (t3, Q, F, D, G);
+                            MARK (t4, Q, F, D, G);
+                            MARK (t5, Q, F, D, G);
+                            MARK (t6, Q, F, D, G);
+                            MARK (t7, Q, F, D, G);
+                            MARK (t8, Q, F, D, G);
                             return Gstar;
                         }
                     }
                 }
-                //edgelook_listfree (pool, list3);
                 unmarkedge_del (t5, t6, E);
             }
             unmarkedge_add (t4, t5, E);
         }
-        //edgelook_listfree (pool, list2);
         unmarkedge_add (t2, t3, E);
         unmarkedge_del (t3, t4, E);
     }
-    //edgelook_listfree (pool, list);
     return 0;
 }
 
-static edgelook *look_ahead (graph *G, distobj *D, adddel *E, CClk_flipper *F,
-       int first, int last, int gain, int level, mpool *pool)
+static std::vector<edgelook> look_ahead (graph *G, CCdatagroup *D, adddel *E,
+    CClk_flipper *F, int first, int last, int gain, int level)
 {
-    edgelook *list = (edgelook *) NULL, *el;
+    std::vector<edgelook> list;
     int i, val;
-    int this, prev;
+    int curr, prev;
     int lastnext = CClinkern_flipper_next (F, last);
     int other[MAX_BACK], save[MAX_BACK];
     int value[MAX_BACK + 1];
-#if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
-    int mm[MAX_BACK];
-#endif
     int k, ahead = backtrack_count[level];
     edge **goodlist = G->goodlist;
 
     for (i = 0; i < ahead; i++) {
         value[i] = BIGINT;
-#if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
-        mm[i] = 0;
-#endif
     }
     value[ahead] = -BIGINT;
 
-#ifdef USE_LESS_OR_EQUAL
     for (i = 0; goodlist[last][i].weight <= gain; i++) {
-#else
-    for (i = 0; goodlist[last][i].weight < gain; i++) {
-#endif
-        this = goodlist[last][i].other;
-        if (!is_it_deleted (last, this, E) && this != first &&
-                                              this != lastnext) {
-            prev = CClinkern_flipper_prev (F, this);
-            if (!is_it_added (this, prev, E)) {
-                val = goodlist[last][i].weight - Edgelen (this, prev, D);
+        curr = goodlist[last][i].other;
+        if (!is_it_deleted (last, curr, E) && curr != first &&
+                                              curr != lastnext) {
+            prev = CClinkern_flipper_prev (F, curr);
+            if (!is_it_added (curr, prev, E)) {
+                val = goodlist[last][i].weight - Edgelen (curr, prev, D);
                 if (val < value[0]) {
                     for (k = 0; value[k+1] > val; k++) {
                         value[k] = value[k+1];
@@ -1140,164 +905,95 @@ static edgelook *look_ahead (graph *G, distobj *D, adddel *E, CClk_flipper *F,
                         save[k] = save[k+1];
                     }
                     value[k] = val;
-                    other[k] = this;
+                    other[k] = curr;
                     save[k] = prev;
                 }
             }
         }
     }
 
-#if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
-    {
-        int firstprev = CClinkern_flipper_prev (F, first);
-        int next;
-
-#ifdef USE_LESS_OR_EQUAL
-        for (i = 0; goodlist[first][i].weight <= gain; i++) {
-#else
-        for (i = 0; goodlist[first][i].weight < gain; i++) {
-#endif
-            this = goodlist[first][i].other;
-            if (!is_it_deleted (first, this, E) && this != last &&
-                                                   this != firstprev) {
-                next = CClinkern_flipper_next (F, this);
-                if (!is_it_added (this, next, E)) {
-                    val = goodlist[first][i].weight - Edgelen (this, next, D);
-                    if (val < value[0]) {
-                        for (k = 0; value[k+1] > val; k++) {
-                            value[k] = value[k+1];
-                            other[k] = other[k+1];
-                            save[k] = save[k+1];
-                            mm[k] = mm[k+1];
-                        }
-                        value[k] = val;
-                        other[k] = this;
-                        save[k] = next;
-                        mm[k] = 1;
-                    }
-                }
-            }
-        }
-    }
-#endif
-
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
-            el->diff = value[i];
-            el->other = other[i];
-            el->over = save[i];
-            el->next = list;
-#if defined(MAK_MORTON) && defined(FULL_MAK_MORTON)
-            el->mm = mm[i];
-#endif
-            list = el;
+            list.push_back(edgelook{});
+            list.back().diff = value[i];
+            list.back().other = other[i];
+            list.back().over = save[i];
         }
     }
+    std::reverse(list.begin(), list.end());
 
     return list;
 }
 
-static void look_ahead_noback (graph *G, distobj *D, adddel *E, CClk_flipper *F,
+static void look_ahead_noback (graph *G, CCdatagroup *D, adddel *E, CClk_flipper *F,
         int first, int last, int gain, edgelook *winner)
 {
     int val;
-    int this, prev;
+    int curr, prev;
     int lastnext = CClinkern_flipper_next (F, last);
     int i;
-#if defined(MAK_MORTON) || defined(NODE_INSERTIONS)
     int next;
-#endif
     edge **goodlist = G->goodlist;
 
     winner->diff = BIGINT;
     for (i = 0; goodlist[last][i].weight < gain; i++) {
-        this = goodlist[last][i].other;
-        if (!is_it_deleted (last, this, E) && this != first &&
-                                              this != lastnext) {
-            prev = CClinkern_flipper_prev (F, this);
-            if (!is_it_added (this, prev, E)) {
-                val = goodlist[last][i].weight - Edgelen (this, prev, D);
+        curr = goodlist[last][i].other;
+        if (!is_it_deleted (last, curr, E) && curr != first &&
+                                              curr != lastnext) {
+            prev = CClinkern_flipper_prev (F, curr);
+            if (!is_it_added (curr, prev, E)) {
+                val = goodlist[last][i].weight - Edgelen (curr, prev, D);
                 if (val < winner->diff) {
                     winner->diff = val;
-                    winner->other = this;
+                    winner->other = curr;
                     winner->over = prev;
-#ifdef MAK_MORTON
                     winner->mm = 0;
-#endif
-#ifdef NODE_INSERTIONS
-                    winner->ni = 0;
-#endif
                 }
-#ifdef NODE_INSERTIONS
-                next =  CClinkern_flipper_next (F, this);
-                if (!is_it_added (this, next, E) &&
-                    !is_it_deleted (prev, next, E)) {
-                    val += (Edgelen (next, prev, D) - Edgelen (this, next, D));
-                    if (val < winner->diff) {
-                        winner->diff = val;
-                        winner->other = this;
-                        winner->over = prev;
-                        winner->under = next;
-                        winner->ni = 1;
-                    }
-                }
-#endif
             }
         }
     }
-#ifdef MAK_MORTON
     {
         int firstprev = CClinkern_flipper_prev (F, first);
 
         for (i = 0; goodlist[first][i].weight < gain; i++) {
-            this = goodlist[first][i].other;
-            if (!is_it_deleted (first, this, E) && this != last &&
-                                                   this != firstprev) {
-                next = CClinkern_flipper_next (F, this);
-                if (!is_it_added (this, next, E)) {
-                    val = goodlist[first][i].weight - Edgelen (this, next, D);
+            curr = goodlist[first][i].other;
+            if (!is_it_deleted (first, curr, E) && curr != last &&
+                                                   curr != firstprev) {
+                next = CClinkern_flipper_next (F, curr);
+                if (!is_it_added (curr, next, E)) {
+                    val = goodlist[first][i].weight - Edgelen (curr, next, D);
                     if (val < winner->diff) {
                         winner->diff = val;
-                        winner->other = this;
+                        winner->other = curr;
                         winner->over = next;
                         winner->mm = 1;
-#ifdef NODE_INSERTIONS
-                        winner->ni = 0;
-#endif
                     }
                 }
             }
         }
     }
-#endif
 }
 
-static edgelook *weird_look_ahead (graph *G, distobj *D, CClk_flipper *F,
-        int gain, int t1, int t2, mpool *pool)
+static std::vector<edgelook> weird_look_ahead (graph *G, CCdatagroup *D, CClk_flipper *F,
+        int gain, int t1, int t2)
 {
-    edgelook *list, *el;
-    int i, this, next;
+    std::vector<edgelook> list;
+    int i, curr, next;
     int other[MAX_BACK], save[MAX_BACK];
     int value[MAX_BACK + 1];
     int k, val, ahead;
     edge **goodlist = G->goodlist;
 
-    list = (edgelook *) NULL;
     ahead = weird_backtrack_count[0];
     for (i = 0; i < ahead; i++)
         value[i] = BIGINT;
     value[ahead] = -BIGINT;
 
-#ifdef USE_LESS_OR_EQUAL
     for (i = 0; goodlist[t2][i].weight <= gain; i++) {
-#else
-    for (i = 0; goodlist[t2][i].weight < gain; i++) {
-#endif
-        this = goodlist[t2][i].other;
-        if (this != t1) {
-            next = CClinkern_flipper_next (F, this);
-            val = goodlist[t2][i].weight - Edgelen (this, next, D);
+        curr = goodlist[t2][i].other;
+        if (curr != t1) {
+            next = CClinkern_flipper_next (F, curr);
+            val = goodlist[t2][i].weight - Edgelen (curr, next, D);
             if (val < value[0]) {
                 for (k = 0; value[k+1] > val; k++) {
                     value[k] = value[k+1];
@@ -1305,29 +1001,27 @@ static edgelook *weird_look_ahead (graph *G, distobj *D, CClk_flipper *F,
                     save[k] = save[k+1];
                 }
                 value[k] = val;
-                other[k] = this;
+                other[k] = curr;
             save[k] = next;
             }
         }
     }
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
-            el->diff = value[i];
-            el->other = other[i];
-            el->over = save[i];
-            el->next = list;
-            list = el;
+            list.push_back(edgelook{});
+            list.back().diff = value[i];
+            list.back().other = other[i];
+            list.back().over = save[i];
         }
     }
+    std::reverse(list.begin(), list.end());
     return list;
 }
 
-static edgelook *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F,
-       int gain, int t2, int t3, int t4, mpool *pool)
+static std::vector<edgelook> weird_look_ahead2 (graph *G, CCdatagroup *D, CClk_flipper *F,
+       int gain, int t2, int t3, int t4)
 {
-    edgelook *list = (edgelook *) NULL;
-    edgelook *el;
+    std::vector<edgelook> list;
     int i, t5, t6;
     int other[MAX_BACK], save[MAX_BACK], seq[MAX_BACK], side[MAX_BACK];
     int value[MAX_BACK + 1];
@@ -1341,11 +1035,7 @@ static edgelook *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F,
         value[i] = BIGINT;
     value[ahead] = -BIGINT;
 
-#ifdef USE_LESS_OR_EQUAL
     for (i = 0; goodlist[t4][i].weight <= gain; i++) {
-#else
-    for (i = 0; goodlist[t4][i].weight < gain; i++) {
-#endif
         t5 = goodlist[t4][i].other;
         if (weirdmark[t5] != weirdmagic) {
             if (CClinkern_flipper_sequence (F, t2, t5, t3)) {
@@ -1404,24 +1094,22 @@ static edgelook *weird_look_ahead2 (graph *G, distobj *D, CClk_flipper *F,
 
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
-            el->diff = value[i];
-            el->other = other[i];
-            el->over = save[i];
-            el->seq = seq[i];
-            el->side = side[i];
-            el->next = list;
-            list = el;
+            list.push_back(edgelook{});
+            list.back().diff = value[i];
+            list.back().other = other[i];
+            list.back().over = save[i];
+            list.back().seq = seq[i];
+            list.back().side = side[i];
         }
     }
+    std::reverse(list.begin(), list.end());
     return list;
 }
 
-static edgelook *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F,
-        int gain, int t2, int t3, int t6, mpool *pool)
+static std::vector<edgelook> weird_look_ahead3 (graph *G, CCdatagroup *D, CClk_flipper *F,
+        int gain, int t2, int t3, int t6)
 {
-    edgelook *list = (edgelook *) NULL;
-    edgelook *el;
+    std::vector<edgelook> list;
     int i, t7, t8;
     int other[MAX_BACK], save[MAX_BACK], side[MAX_BACK];
     int value[MAX_BACK + 1];
@@ -1435,11 +1123,7 @@ static edgelook *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F,
         value[i] = BIGINT;
     value[ahead] = -BIGINT;
 
-#ifdef USE_LESS_OR_EQUAL
     for (i = 0; goodlist[t6][i].weight <= gain; i++) {
-#else
-    for (i = 0; goodlist[t6][i].weight < gain; i++) {
-#endif
         t7 = goodlist[t6][i].other;   /* Need t7 != t2, t3, t2next, t3prev */
         if (weirdmark[t7] != weirdmagic &&
                    CClinkern_flipper_sequence (F, t2, t7, t3)) {
@@ -1476,19 +1160,18 @@ static edgelook *weird_look_ahead3 (graph *G, distobj *D, CClk_flipper *F,
 
     for (i = 0; i < ahead; i++) {
         if (value[i] < BIGINT) {
-            el = (edgelook*)mpool_alloc(pool, sizeof(edgelook));
-            el->diff = value[i];
-            el->other = other[i];
-            el->over = save[i];
-            el->side = side[i];
-            el->next = list;
-            list = el;
+            list.push_back(edgelook{});
+            list.back().diff = value[i];
+            list.back().other = other[i];
+            list.back().over = save[i];
+            list.back().side = side[i];
         }
     }
+    std::reverse(list.begin(), list.end());
     return list;
 }
 
-static double cycle_length (int ncount, int *cyc, distobj *D)
+static double cycle_length (int ncount, int *cyc, CCdatagroup *D)
 {
     int i;
     double val = 0.0;
@@ -1501,24 +1184,12 @@ static double cycle_length (int ncount, int *cyc, distobj *D)
     return val;
 }
 
-static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
-       int *delta, int kicktype, flipstack *win, flipstack *fstack, mpool *pool)
+static int random_four_swap (graph *G, CCdatagroup *D, aqueue *Q, CClk_flipper *F,
+       int *delta, flipstack *win, flipstack *fstack)
 {
     int t1, t2, t3, t4, t5, t6, t7, t8, temp;
 
-    switch (kicktype) {
-    case CC_LK_RANDOM_KICK:
-        find_random_four (G, D, F, &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8);
-        break;
-    case CC_LK_WALK_KICK:
-        find_walk_four (G, D, F, &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8);
-        break;
-    case CC_LK_CLOSE_KICK:
-        find_close_four (G, D, F, &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8);
-        break;
-    default:
-        fprintf (stderr, "unknown kick type %d\n", kicktype); return 1;
-    }
+    find_walk_four (G, D, F, &t1, &t2, &t3, &t4, &t5, &t6, &t7, &t8);
 
     if (!CClinkern_flipper_sequence (F, t1, t3, t5)) {
         CC_SWAP (t3, t5, temp);
@@ -1552,14 +1223,14 @@ static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
         win->counter++;
     }
 
-    bigturn (G ,t1, 0, Q, F, D, pool);
-    bigturn (G, t2, 1, Q, F, D, pool);
-    bigturn (G, t3, 0, Q, F, D, pool);
-    bigturn (G, t4, 1, Q, F, D, pool);
-    bigturn (G, t5, 0, Q, F, D, pool);
-    bigturn (G, t6, 1, Q, F, D, pool);
-    bigturn (G, t7, 0, Q, F, D, pool);
-    bigturn (G, t8, 1, Q, F, D, pool);
+    bigturn (G ,t1, 0, Q, F, D);
+    bigturn (G, t2, 1, Q, F, D);
+    bigturn (G, t3, 0, Q, F, D);
+    bigturn (G, t4, 1, Q, F, D);
+    bigturn (G, t5, 0, Q, F, D);
+    bigturn (G, t6, 1, Q, F, D);
+    bigturn (G, t7, 0, Q, F, D);
+    bigturn (G, t8, 1, Q, F, D);
 
     *delta =
            Edgelen (t1, t6, D) + Edgelen (t2, t5, D) +
@@ -1571,10 +1242,9 @@ static int random_four_swap (graph *G, distobj *D, aqueue *Q, CClk_flipper *F,
 
 #define HUNT_PORTION_LONG 0.001
 
-static void first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1,
+static void first_kicker (graph *G, CCdatagroup *D, CClk_flipper *F, int *t1,
         int *t2)
 {
-#ifdef LONG_KICKER
     int longcount = (int) ((double) G->ncount * HUNT_PORTION_LONG) + 10;
     int i, best, try1, len, next, prev, nextl, prevl;
     int ncount = G->ncount;
@@ -1615,109 +1285,16 @@ static void first_kicker (graph *G, distobj *D, CClk_flipper *F, int *t1,
             }
         }
     }
-#else   /* LONG_KICKER */
-    *t1 = rand() % G->ncount;
-    *t2 = CClinkern_flipper_next (F, *t1);
-#endif  /* LONG_KICKER */
-}
-
-static void find_random_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
-        int *t2, int *t3, int *t4, int *t5, int *t6, int *t7, int *t8)
-{
-    int ncount = G->ncount;
-
-    first_kicker (G, D, F, t1, t2);
-    do {
-        *t3 = rand() % ncount;
-        *t4 = CClinkern_flipper_next (F, *t3);
-    } while (*t3 == *t1 || *t3 == *t2 || *t4 == *t1);
-
-    do {
-        *t5 = rand() % ncount;
-        *t6 = CClinkern_flipper_next (F, *t5);
-    } while (*t5 == *t1 || *t5 == *t2 || *t5 == *t3 || *t5 == *t4 ||
-             *t6 == *t1 || *t6 == *t3);
-
-    do {
-        *t7 = rand() % ncount;
-        *t8 = CClinkern_flipper_next (F, *t7);
-    } while (*t7 == *t1 || *t7 == *t2 ||
-             *t7 == *t3 || *t7 == *t4 || *t7 == *t5 || *t7 == *t6 ||
-             *t8 == *t1 || *t8 == *t3 || *t8 == *t5 );
-}
-
-
-#define HUNT_PORTION    0.03
-#define RAND_TRYS       6    /* To find the 3 other edges */
-
-static void find_close_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
-        int *t2, int *t3, int *t4, int *t5, int *t6, int *t7, int *t8)
-{
-    int s1, s2, s3, s4, s5, s6, s7, s8;
-    int i, k, try1, trydist;
-    int count = (int) ((double) G->ncount * HUNT_PORTION) + 1 + RAND_TRYS;
-    int trials[RAND_TRYS + 1];
-    int tdist[RAND_TRYS + 1];
-
-    first_kicker (G, D, F, &s1, &s2);
-
-
-TRYAGAIN:
-
-    for (k = 0; k < RAND_TRYS; k++) tdist[k] = BIGINT;
-    tdist[RAND_TRYS] = -BIGINT;
-    for (i = 0; i < count; i++) {
-        try1 = rand() % G->ncount;
-        trydist = Edgelen (try1, s1, D);
-        if (trydist < tdist[0]) {
-            for (k = 0; tdist[k + 1] > trydist; k++) {
-                tdist[k] = tdist[k + 1];
-                trials[k] = trials[k + 1];
-            }
-            tdist[k] = trydist;
-            trials[k] = try1;
-        }
-    }
-
-    k = RAND_TRYS-1;
-    do {
-        if (k < 0) goto TRYAGAIN;
-        s3 = trials[k--];
-        s4 = CClinkern_flipper_next (F, s3);
-    } while (s3 == s1 || s3 == s2 || s4 == s1);
-
-    do {
-        if (k < 0) goto TRYAGAIN;
-        s5 = trials[k--];
-        s6 = CClinkern_flipper_next (F, s5);
-    } while (s5 == s1 || s5 == s2 || s5 == s3 ||
-             s5 == s4 || s6 == s1 || s6 == s3);
-
-    do {
-        if (k < 0) goto TRYAGAIN;
-        s7 = trials[k--];
-        s8 = CClinkern_flipper_next (F, s7);
-    } while (s7 == s1 || s7 == s2 || s7 == s3 || s7 == s4 ||
-             s7 == s5 || s7 == s6 || s8 == s1 || s8 == s3 ||
-             s8 == s5);
-
-    *t1 = s1; *t2 = s2; *t3 = s3; *t4 = s4;
-    *t5 = s5; *t6 = s6; *t7 = s7; *t8 = s8;
 }
 
 
 #define WALK_STEPS 50
 
-static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
+static void find_walk_four (graph *G, CCdatagroup *D, CClk_flipper *F, int *t1,
         int *t2, int *t3, int *t4, int *t5, int *t6, int *t7, int *t8)
 {
     int s1, s2, s3, s4, s5, s6, s7, s8;
     int old, n, i, j;
-
-/*
-    s1 = rand() % G->ncount;
-    s2 = CClinkern_flipper_next (F, s1);
-*/
 
     first_kicker (G, D, F, &s1, &s2);
 
@@ -1769,85 +1346,52 @@ static void find_walk_four (graph *G, distobj *D, CClk_flipper *F, int *t1,
     *t5 = s5;  *t6 = s6;  *t7 = s7;  *t8 = s8;
 }
 
-#ifdef USE_LESS_MARKING
-
-static void turn (int n, aqueue *Q, mpool *pool)
-
-#else /* USE_LESS_MARKING */
-
-static void turn (int n, aqueue *Q, CClk_flipper *F, mpool *pool)
-
-#endif /* USE_LESS_MARKING */
+static void turn (int n, aqueue *Q)
 {
-    add_to_active_queue (n, Q, pool);
-
-#ifdef MARK_NEIGHBORS
-    {
-       int i = 0;
-       for (i = 0; i < bigG->degree[n]; i++) {
-           if (rand() % 2) {
-               add_to_active_queue (bigG->goodlist[n][i].other, Q, pool);
-           }
-       }
-   }
-#else
-#ifndef USE_LESS_MARKING
-   {
-        int k;
-        k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, pool);
-        k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, pool);
-        k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, pool);
-        k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, pool);
-   }
-#endif
-#endif
+    add_to_active_queue (n, Q);
 }
 
-static void kickturn (int n, aqueue *Q, distobj *D,
-        graph *G, CClk_flipper *F, mpool *pool)
+static void kickturn (int n, aqueue *Q, CCdatagroup *D,
+        graph *G, CClk_flipper *F)
 {
     (void)D;
     (void)G;
-    add_to_active_queue (n, Q, pool);
+    add_to_active_queue (n, Q);
     {
         int k;
         k = CClinkern_flipper_next (F, n);
-        add_to_active_queue (k, Q, pool);
+        add_to_active_queue (k, Q);
         k = CClinkern_flipper_next (F, k);
-        add_to_active_queue (k, Q, pool);
+        add_to_active_queue (k, Q);
         k = CClinkern_flipper_prev (F, n);
-        add_to_active_queue (k, Q, pool);
+        add_to_active_queue (k, Q);
         k = CClinkern_flipper_prev (F, k);
-        add_to_active_queue (k, Q, pool);
+        add_to_active_queue (k, Q);
     }
 }
 
 static void bigturn (graph *G, int n, int tonext, aqueue *Q, CClk_flipper *F,
-        distobj *D, mpool *pool)
+        CCdatagroup *D)
 {
     int i, k;
 
     (void)D;
 
-    add_to_active_queue (n, Q, pool);
+    add_to_active_queue (n, Q);
     if (tonext) {
         for (i = 0, k = n; i < MARK_LEVEL; i++) {
             k = CClinkern_flipper_next (F, k);
-            add_to_active_queue (k, Q, pool);
+            add_to_active_queue (k, Q);
         }
     } else {
         for (i = 0, k = n; i < MARK_LEVEL; i++) {
             k = CClinkern_flipper_prev (F, k);
-            add_to_active_queue (k, Q, pool);
+            add_to_active_queue (k, Q);
         }
     }
 
     for (i = 0; i < G->degree[n]; i++) {
-        add_to_active_queue (G->goodlist[n][i].other, Q, pool);
+        add_to_active_queue (G->goodlist[n][i].other, Q);
     }
 }
 
@@ -1874,7 +1418,7 @@ static void freegraph (graph *G)
 }
 
 static int buildgraph (graph *G, int ncount, int ecount, int *elist,
-        distobj *D)
+        CCdatagroup *D)
 {
     int rval = 0;
     int n1, n2, w, i;
@@ -2004,22 +1548,18 @@ CLEANUP:
 static void init_aqueue (aqueue *Q)
 {
     Q->active = (char *) NULL;
-    Q->active_queue = (intptr *) NULL;
-    Q->bottom_active_queue = (intptr *) NULL;
+    Q->qu.clear();
 }
 
-static void free_aqueue (aqueue *Q, mpool *pool)
+static void free_aqueue (aqueue *Q)
 {
     if (Q) {
         CC_IFFREE (Q->active, char);
-        (void)pool;
-        // intptr_listfree (intptr_world, Q->active_queue);
-        Q->active_queue = (intptr *) NULL;
-        Q->bottom_active_queue = (intptr *) NULL;
+        Q->qu.clear();
     }
 }
 
-static int build_aqueue (aqueue *Q, int ncount, mpool *pool)
+static int build_aqueue (aqueue *Q, int ncount)
 {
     int rval = 0;
     int i;
@@ -2036,126 +1576,26 @@ static int build_aqueue (aqueue *Q, int ncount, mpool *pool)
 CLEANUP:
 
     if (rval) {
-        free_aqueue (Q, pool);
+        free_aqueue (Q);
     }
     return rval;
 }
 
-static void add_to_active_queue (int n, aqueue *Q, mpool *pool)
+static void add_to_active_queue (int n, aqueue *Q)
 {
-    intptr *ip;
     if (Q->active[n] == 0) {
         Q->active[n] = 1;
-        ip = (intptr *)mpool_alloc(pool, sizeof(intptr));
-        ip->this = n;
-        ip->next = (intptr *) NULL;
-        if (Q->bottom_active_queue) {
-            Q->bottom_active_queue->next = ip;
-        } else {
-            Q->active_queue = ip;
-        }
-        Q->bottom_active_queue = ip;
+        Q->qu.push_back(n);
     }
 }
 
-static int pop_from_active_queue (aqueue *Q, mpool *pool)
+static int pop_from_active_queue (aqueue *Q)
 {
-    intptr *ip;
     int n = -1;
-
-    if (Q->active_queue != (intptr *) NULL) {
-        ip = Q->active_queue;
-        n = ip->this;
-        Q->active_queue = ip->next;
-        if (ip == Q->bottom_active_queue) {
-            Q->bottom_active_queue = (intptr *) NULL;
-        }
-        (void)pool;
-        //intptrfree (pool, ip);
+    if (!Q->qu.empty()) {
+        n = Q->qu.front();
+        Q->qu.pop_front();
         Q->active[n] = 0;
     }
     return n;
-}
-
-static void init_distobj (distobj *D)
-{
-    D->dat = (CCdatagroup *) NULL;
-    D->cacheind  = (int *) NULL;
-    D->cacheval  = (int *) NULL;
-    D->cacheM = 0;
-}
-
-static void free_distobj (distobj *D)
-{
-    if (D) {
-         D->dat = (CCdatagroup *) NULL;
-         CC_IFFREE (D->cacheind, int);
-         CC_IFFREE (D->cacheval, int);
-         D->cacheM = 0;
-    }
-}
-
-static int build_distobj (distobj *D, int ncount, CCdatagroup *dat)
-{
-    int rval = 0;
-    int i;
-
-    init_distobj (D);
-    D->dat = dat;
-
-#ifndef BENTLEY_CACHE
-    i = 0;
-    while ((1 << i) < (ncount << 2))
-        i++;
-    D->cacheM = (1 << i);
-#else
-    i = 0;
-    while ((1 << i) < ncount)
-        i++;
-    D->cacheM = (1 << i);
-#endif
-
-    D->cacheind = CC_SAFE_MALLOC (D->cacheM, int);
-    D->cacheval = CC_SAFE_MALLOC (D->cacheM, int);
-    if (D->cacheind == (int *) NULL || D->cacheval == (int *) NULL) {
-        fprintf (stderr, "out of memory in build_distobj\n");
-        rval = 1; goto CLEANUP;
-    }
-    for (i = 0; i < D->cacheM; i++) {
-        D->cacheind[i] = -1;
-    }
-
-#ifndef BENTLEY_CACHE
-    D->cacheM--;
-#endif
-
-CLEANUP:
-
-    if (rval) {
-        free_distobj (D);
-    }
-    return rval;
-}
-
-
-static int dist (int i, int j, distobj *D)   /* As in Bentley's kdtree paper */
-{
-    int ind;
-
-    if (i > j) {
-        int temp;
-        CC_SWAP (i, j, temp);
-    }
-
-#ifndef BENTLEY_CACHE
-    ind = (((i << 8) + i + j) & (D->cacheM));
-#else
-    ind = i ^ j;
-#endif
-
-    if (D->cacheind[ind] != i) {
-        D->cacheind[ind] = i;
-        D->cacheval[ind] = CCutil_dat_edgelen (i, j, D->dat);
-    }
-    return D->cacheval[ind];
 }
